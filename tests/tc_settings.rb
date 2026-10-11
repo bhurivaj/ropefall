@@ -109,4 +109,11 @@ class TestSettings < Minitest::Test
     Sketchup.write_default(S::PREF_SECTION, S::PREF_KEY, 'a"b')
     assert_output(/settings could not be read/) { assert_equal S::DEFAULTS, S.load }
   end
+
+  def test_method_defaults_to_drape_and_is_validated
+    assert_equal 'drape', S::DEFAULTS['method']
+    assert_equal 'drape', S.normalize({})['method'], 'old ropes without method'
+    assert_equal [], S.validate(valid('method' => 'catenary'), LINE)
+    assert_includes S.validate(valid('method' => 'x'), LINE).join, 'Unknown method'
+  end
 end

@@ -11,6 +11,7 @@ module SKETCHROPE_ROPEFALL
     # (2.1.0 / 2.1.1 used the key 'settings' with plain JSON — never read again.)
     PREF_KEY = 'settings_b64'
     DEFAULTS = {
+      'method' => 'drape',
       'length_mode' => 'percent',
       'length_percent' => 125.0,
       'length_fixed' => 39.37, # 1 m in inch
@@ -78,6 +79,7 @@ module SKETCHROPE_ROPEFALL
     # Error messages (empty when the settings can be used); material is checked by the dialog
     def validate(settings, points)
       errors = []
+      errors << 'Unknown method' unless %w[drape catenary].include?(settings['method'])
       errors << 'Unknown length mode' unless %w[percent fixed].include?(settings['length_mode'])
       errors << 'Unknown display' unless %w[line tube].include?(settings['display'])
       if settings['length_mode'] == 'percent' && !settings['length_percent'].between?(MIN_PERCENT, MAX_PERCENT)
