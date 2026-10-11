@@ -21,7 +21,8 @@ module SKETCHROPE_ROPEFALL
       def create_dialog
         dialog = UI::HtmlDialog.new(
           dialog_title: 'Ropefall',
-          preferences_key: 'sketchrope_ropefall_dialog',
+          # _v2: the height grew to 545; SketchUp restores the stored size of the old key, hiding Start
+          preferences_key: 'sketchrope_ropefall_dialog_v2',
           width: 380, height: 545, resizable: false,
           style: UI::HtmlDialog::STYLE_DIALOG
         )

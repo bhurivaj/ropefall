@@ -31,6 +31,14 @@ class TestCatenary < Minitest::Test
     assert_equal pts.map { |p| p[2] }.min, mid[2]
   end
 
+  def test_near_vertical_ends_stay_finite_and_keep_length
+    pts = C.points([0, 0, 100], [0.01, 0, 0], 110.0, 101)
+    assert_finite(pts)
+    assert_point [0, 0, 100], pts.first
+    assert_point [0.01, 0, 0], pts.last
+    assert_in_delta 110.0, length_of(pts), 110.0 * 0.005
+  end
+
   def test_ends_at_different_heights
     pts = C.points([0, 0, 50], [20, 0, 80], 45.0, 100)
     assert_finite(pts)

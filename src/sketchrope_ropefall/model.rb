@@ -508,14 +508,15 @@ class Rope
 
     CONSTRAINT_PASSES = 16
 
-    # no stretching: segments longer than the rope's segment length are pulled back (moves are
-    # collision-checked like normal steps)
+    # no stretching: segments longer than the rope's segment length are pulled back.
+    # The passes are pure math on an array; each moved point then makes ONE collision-checked
+    # move to its constrained position (instead of one checked move per pass, which costs
+    # face + segment queries thousands of times per frame).
     def enforceLength(dt)
         points = @massPoints.map{|mp| RopeData.xyz(mp.pos)}
         frozen = @massPoints.map{|mp| mp.frozen}
-        moved = LengthConstraint.project(points, frozen, @segmentLength, CONSTRAINT_PASSES) { |i, from, to|
-            RopeData.xyz(@massPoints[i].constrainTo(Geom::Point3d.new(*to)))
-        }
+        moved = LengthConstraint.project(points, frozen, @segmentLength, CONSTRAINT_PASSES)
+        moved.each{|i| @massPoints[i].constrainTo(Geom::Point3d.new(*points[i]))}
         moved.each{|i| @massPoints[i].followConstraint(dt)}
     end
 end

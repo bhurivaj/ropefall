@@ -13,8 +13,10 @@ module SKETCHROPE_ROPEFALL
       dy = b[1] - a[1]
       v = b[2] - a[2]
       h = Math.sqrt(dx * dx + dy * dy)
-      return sample([a, b], count) if length <= Math.sqrt(h * h + v * v) + 1e-9
-      return hanging_u(a, b, length, count) if h < 1e-9
+      chord = Math.sqrt(h * h + v * v)
+      return sample([a, b], count) if length <= chord + 1e-9
+      # (nearly) vertical: the catenary solver loses precision, a U is accurate enough
+      return hanging_u(a, b, length, count) if h < 1e-3 * chord
 
       span = Math.sqrt(length**2 - v**2)
       t = solve_t(span / h)
@@ -52,7 +54,18 @@ module SKETCHROPE_ROPEFALL
     def hanging_u(a, b, length, count)
       depth = (length - (b[2] - a[2]).abs) / 2
       bottom = [a[0], a[1], [a[2], b[2]].min - depth]
-      sample([a, bottom, b], count)
+      points = sample([a, bottom, b], count)
+      # the turn must be a vertex, otherwise the polyline cuts it short
+      turn = depth_index(a, bottom, b, count)
+      points[turn] = bottom if turn > 0 && turn < count - 1
+      points
+    end
+
+    # index of the sample nearest to the bottom turn
+    def depth_index(a, bottom, b, count)
+      down = (bottom[2] - a[2]).abs
+      up = (b[2] - bottom[2]).abs
+      ((count - 1) * down / (down + up)).round
     end
 
     # `count` points evenly spaced along a polyline
