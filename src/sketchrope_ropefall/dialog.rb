@@ -46,10 +46,16 @@ module SKETCHROPE_ROPEFALL
       def send_state
         names = material_names
         s = @settings
+        length_fixed_str = Sketchup.format_length(s['length_fixed'])
+        diameter_str = Sketchup.format_length(s['diameter'])
+        @shown = {
+          'length_fixed' => length_fixed_str,
+          'diameter' => diameter_str
+        }
         state = {
           'length_mode' => s['length_mode'], 'length_percent' => s['length_percent'],
-          'length_fixed' => Sketchup.format_length(s['length_fixed']),
-          'display' => s['display'], 'diameter' => Sketchup.format_length(s['diameter']),
+          'length_fixed' => length_fixed_str,
+          'display' => s['display'], 'diameter' => diameter_str,
           'sides' => s['sides'], 'smooth' => s['smooth'],
           'material' => names.include?(s['material']) ? s['material'] : '',
           'materials' => names,
@@ -59,13 +65,20 @@ module SKETCHROPE_ROPEFALL
       end
 
       def start(json)
-        form = JSON.parse(json.to_s)
+        @form = JSON.parse(json.to_s)
         errors = []
+        # Only parse length_fixed if in fixed mode; otherwise keep current value
+        length_fixed = if @form['length_mode'] == 'fixed'
+                         length_from_form('length_fixed', 'fixed length', errors)
+                       else
+                         @settings['length_fixed']
+                       end
+        diameter = length_from_form('diameter', 'diameter', errors)
         settings = Settings.normalize(
-          'length_mode' => form['length_mode'], 'length_percent' => form['length_percent'].to_f,
-          'length_fixed' => parse_length(form['length_fixed'], 'fixed length', errors, @settings['length_fixed']),
-          'display' => form['display'], 'diameter' => parse_length(form['diameter'], 'diameter', errors, @settings['diameter']),
-          'sides' => form['sides'].to_i, 'smooth' => form['smooth'] == true, 'material' => form['material'].to_s
+          'length_mode' => @form['length_mode'], 'length_percent' => @form['length_percent'].to_f,
+          'length_fixed' => length_fixed,
+          'display' => @form['display'], 'diameter' => diameter,
+          'sides' => @form['sides'].to_i, 'smooth' => @form['smooth'] == true, 'material' => @form['material'].to_s
         )
         unless settings['material'].empty? || Sketchup.active_model.materials[settings['material']]
           errors << "Material not found: #{settings['material']}"
@@ -78,12 +91,15 @@ module SKETCHROPE_ROPEFALL
         @on_start.call(settings)
       end
 
-      # Length typed by the user in model units ("3.5m", "10 mm", "1'") → inch Float
-      def parse_length(text, label, errors, fallback)
-        text.to_s.to_l.to_f
+      # Parse length from form, preserving exact value if field unchanged from display
+      def length_from_form(key, label, errors)
+        text = @form[key].to_s
+        return @settings[key] if @shown && @shown[key] == text
+
+        text.to_l.to_f
       rescue ArgumentError
         errors << "Invalid #{label}: #{text}"
-        fallback
+        @settings[key]
       end
 
       def js(code)
