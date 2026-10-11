@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [2.1.0] - 2026-10-11
 
 ### Added
 - Settings dialog before every fall: rope length (percent of polyline or fixed length), line / tube, diameter, tube sides, smoothing, material
