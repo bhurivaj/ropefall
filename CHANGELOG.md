@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [2.1.2] - 2026-10-11
 
 ### Fixed
 - Fall… failed after the first use on macOS (settings were saved as JSON text, which SketchUp evaluates on read) — settings are now stored as Base64 and an unreadable value falls back to the defaults
