@@ -14,7 +14,7 @@ module SKETCHROPE_ROPEFALL
   unless file_loaded?( __FILE__ )   
     ### CONSTANTS ### ----------------------------------------------------------
     PLUGIN_NAME = 'Ropefall'.freeze
-    VERSION    = '2.0.0'.freeze
+    VERSION    = '2.0.1'.freeze
     
     file = __FILE__.dup
     file.force_encoding("UTF-8") if file.respond_to?(:force_encoding)

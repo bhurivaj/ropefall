@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.0.1] - 2026-10-11
+
+### Fixed
+- `.rbz` put `LICENSE` at the archive root, so installing dropped it straight into the SketchUp Plugins folder — it now ships as `sketchrope_ropefall/LICENSE.txt`
+
 ## [2.0.0] - 2026-10-11
 
 ### Changed

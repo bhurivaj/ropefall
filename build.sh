@@ -4,7 +4,10 @@ set -e
 cd "$(dirname "$0")"
 VERSION=$(sed -n "s/.*VERSION *= *'\([^']*\)'.*/\1/p" src/sketchrope_ropefall.rb)
 rm -rf target
-mkdir -p target
-(cd src && zip -rq "../target/ropefall_${VERSION}.rbz" sketchrope_ropefall.rb sketchrope_ropefall -x '*.DS_Store')
-zip -q "target/ropefall_${VERSION}.rbz" LICENSE  # MIT notice must ship with every copy
+mkdir -p target/stage
+cp -R src/sketchrope_ropefall.rb src/sketchrope_ropefall target/stage/
+# MIT notice must ship with every copy; keep it inside the plugin folder (rbz root = Plugins folder)
+cp LICENSE target/stage/sketchrope_ropefall/LICENSE.txt
+(cd target/stage && zip -rq "../ropefall_${VERSION}.rbz" . -x '*.DS_Store')
+rm -rf target/stage
 echo "Built target/ropefall_${VERSION}.rbz"
