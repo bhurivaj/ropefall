@@ -7,6 +7,7 @@ class Anim
     attr_reader :finished
 
     def initialize(initialPoints, settings, replace = nil)
+        @model = Sketchup.active_model # the timer in stop() must not touch another open document
         @initialPoints = initialPoints
         @settings = settings
         @replace = replace
@@ -14,6 +15,7 @@ class Anim
         @torsionSpringVectorBegin = (initialPoints[0] - initialPoints[1]).normalize
         @torsionSpringVectorEnd = (initialPoints[-2] - initialPoints[-1]).normalize
         length = Settings.target_length(settings, initialPoints)
+        @targetLength = length
         radius = settings['diameter'].to_f / 2
         # spring stretch is allowed for inside fall_room; the margin only covers the rope's thickness
         roomMin, roomMax = RopeData.fall_room(initialPoints, length, radius)
@@ -52,7 +54,8 @@ class Anim
 
     def finishNow()
         return if @finished || @cancelled
-        view = Sketchup.active_model.active_view
+        return unless @model.valid?
+        view = @model.active_view
         view.animation = nil # calls stop() again, which returns early now
         finish(view, SKETCHROPE_ROPEFALL::ropePoints(@rope))
     rescue StandardError => e
@@ -96,6 +99,7 @@ class Anim
         @count = @count - 1
 
         view.show_frame()
+        Sketchup.status_text = "Ropefall: falling… Esc or Enter keeps the rope as it is now"
         logFrameTime(frameStart)
 
 #        finished = @count < @minCount && (@count == 0 || !@rope.hasAnyMoved())
@@ -128,20 +132,30 @@ class Anim
         @frameSeconds = 0.0
     end
 
+    # Ruby Console: how far the rope reached, as max(|PA| + |PB|) / target length — the fall room
+    # assumes RopeData::STRETCH sideways; this shows real values to tune it
+    def logReach(points)
+        a = points.first
+        b = points.last
+        reach = points.map{|p| p.distance(a) + p.distance(b)}.max / @targetLength
+        puts "Ropefall: reach #{reach.round(2)} × target length (sideways room allows #{1 + RopeData::STRETCH})"
+    end
+
     def finish(view, points, note = nil)
         @finished = true
         @ropeGroup.erase! if @ropeGroup.valid?
 
         @ropeGroup, buildNote = buildRope(points)
         length = RopeData.polyline_length(points)
+        logReach(points)
         @ropeGroup.name = "Rope #{formatLength(length)}"
         RopeData.write(@ropeGroup, @initialPoints, @settings, length)
         @replace.erase! if @replace && @replace.valid?
 
         # select the new rope so Re-simulate can run again right away
-        Sketchup.active_model.selection.clear
-        Sketchup.active_model.selection.add(@ropeGroup)
-        Sketchup.active_model.select_tool nil
+        @model.selection.clear
+        @model.selection.add(@ropeGroup)
+        @model.select_tool nil
 
         notes = [note, buildNote].compact
         status = "Ropefall done — length #{formatLength(length)}"

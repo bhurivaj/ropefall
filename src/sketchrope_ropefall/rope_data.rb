@@ -52,13 +52,14 @@ module SKETCHROPE_ROPEFALL
       [min, max]
     end
 
-    # [min, max, cube_size] of the collision grid around the room. Z starts at the model bottom only
-    # when that is inside the room (the floor face lives there); otherwise at the room's own bottom.
-    # Buckets are at least 1/100 of the largest room side so the bin count stays bounded.
+    # [min, max, cube_size] of the collision grid around the room, from the model bottom (the floor
+    # face) up. Buckets are at least 1/100 of the largest side so the bin count stays bounded.
     def grid_box(room_min, room_max, bottom, cube)
-      largest_side = (0..2).map { |i| room_max[i] - room_min[i] }.max
+      # the springs stretch under the rope's weight, mostly downward: always reach down to the floor
+      low = [room_min[0], room_min[1], bottom]
+      largest_side = (0..2).map { |i| room_max[i] - low[i] }.max
       size = [cube * 1.5, largest_side / 100.0].max
-      min = [room_min[0] - size, room_min[1] - size, [bottom, room_min[2]].max - size]
+      min = low.map { |v| v - size }
       max = (0..2).map { |i| room_max[i] + size }
       [min, max, size]
     end

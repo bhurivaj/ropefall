@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'json'
-require 'base64'
 require_relative 'rope_data'
 
 module SKETCHROPE_ROPEFALL
@@ -60,14 +59,14 @@ module SKETCHROPE_ROPEFALL
       stored = Sketchup.read_default(PREF_SECTION, PREF_KEY, '').to_s
       return DEFAULTS.dup if stored.empty? # nothing saved yet
 
-      parse(Base64.strict_decode64(stored).force_encoding('UTF-8'))
+      parse(stored.unpack1('m0').force_encoding('UTF-8'))
     rescue ScriptError, StandardError => e # read_default can raise SyntaxError on a bad stored value
       puts "Ropefall: settings could not be read, using defaults (#{e.message})"
       DEFAULTS.dup
     end
 
     def save(settings)
-      Sketchup.write_default(PREF_SECTION, PREF_KEY, Base64.strict_encode64(JSON.generate(normalize(settings))))
+      Sketchup.write_default(PREF_SECTION, PREF_KEY, [JSON.generate(normalize(settings))].pack('m0'))
     end
 
     def target_length(settings, points)

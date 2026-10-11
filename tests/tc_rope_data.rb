@@ -71,16 +71,16 @@ class TestRopeData < Minitest::Test
     assert_vector [11.0, 11.0, 60.0], max
   end
 
-  def test_grid_box_does_not_reach_down_to_a_far_bottom
-    # 1 m rope (39.37 in) hanging 25 m (984.25 in) above the model bottom at z = 0
+  def test_grid_box_reaches_down_to_the_model_bottom
+    # 1 m rope (39.37 in) hanging 25 m (984.25 in) above the model bottom at z = 0: a sagging rope
+    # stretches downward, so the grid goes down to the floor; the cell count stays bounded
     length = 39.37
     cube = 1.5 * length / 99
     room_min, room_max = R.fall_room([[0, 0, 984.25], [10, 0, 984.25]], length, 0.1)
     min, max, size = R.grid_box(room_min, room_max, 0.0, cube)
-    room_span = room_max[2] - room_min[2]
-    assert_operator max[2] - min[2], :<=, room_span + 2 * size + 1e-9
-    assert_in_delta room_min[2] - size, min[2], 1e-9
+    assert_in_delta 0.0 - size, min[2], 1e-9
     assert_in_delta room_max[2] + size, max[2], 1e-9
+    (0..2).each { |i| assert_operator ((max[i] - min[i]) / size).floor + 1, :<=, 103 }
   end
 
   def test_grid_box_keeps_a_bottom_inside_the_room

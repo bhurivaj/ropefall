@@ -174,12 +174,12 @@ end
 def self.failFall(error)
     puts error.full_message
 
+    @@anim.cancel if @@anim
     if (@@operationOpen)
         @@operationOpen = false
         model.abort_operation
     end
 
-    @@anim.cancel if @@anim
     @@anim = nil
     # leave the tool after the current callback has returned
     UI.start_timer(0, false) { model.select_tool(nil) }

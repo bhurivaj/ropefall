@@ -5,10 +5,12 @@
 ### Fixed
 - Fall… failed after the first use on macOS (settings were saved as JSON text, which SketchUp evaluates on read) — settings are now stored as Base64 and an unreadable value falls back to the defaults
 - Esc (and now Enter) keep the rope immediately instead of waiting for the next simulation frame; the rope is also kept when SketchUp stops the animation itself — before, a slow frame or a camera tool left an unconfirmed rope that disappeared on the next tool
-- Much smaller simulation area: the rope's reachable ellipsoid instead of a sphere, nothing above the polyline's highest point, 10% spring stretch instead of a 25% margin — far fewer collision faces in big models
+- Much smaller simulation area sideways and upward: the rope's reachable ellipsoid (+10% stretch) instead of a sphere with a 25% margin, nothing above the polyline's highest point; downward it reaches the model bottom again because a hanging rope stretches under its weight — far fewer collision faces in big models
 
 ### Added
 - Ruby Console shows the average frame time every 50 frames
+- Status bar hint while falling: "Esc or Enter keeps the rope as it is now"
+- Ruby Console shows how far the rope reached compared to its target length (to tune the simulation area)
 
 ## [2.1.1] - 2026-10-11
 
