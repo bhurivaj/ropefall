@@ -23,6 +23,12 @@
 <div id="errors"></div>
 
 <fieldset>
+  <legend>Method</legend>
+  <div class="row"><input type="radio" name="method" id="method_drape" value="drape"><label for="method_drape">Drape over objects (simulation)</label></div>
+  <div class="row"><input type="radio" name="method" id="method_catenary" value="catenary"><label for="method_catenary">Catenary (instant, ignores objects)</label></div>
+</fieldset>
+
+<fieldset>
   <legend>Rope length</legend>
   <div class="row">
     <input type="radio" name="length_mode" id="mode_percent" value="percent">
@@ -84,6 +90,7 @@
 
   var ropefall = {
     init: function (s) {
+      $('method_' + s.method).checked = true;
       $('mode_' + s.length_mode).checked = true;
       $('length_percent').value = s.length_percent;
       $('length_fixed').value = s.length_fixed;
@@ -117,6 +124,7 @@
   $('start').addEventListener('click', function () {
     ropefall.errors([]);
     callRuby('start', JSON.stringify({
+      method: checked('method'),
       length_mode: checked('length_mode'),
       length_percent: $('length_percent').value,
       length_fixed: $('length_fixed').value,

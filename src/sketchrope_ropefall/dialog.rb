@@ -22,7 +22,7 @@ module SKETCHROPE_ROPEFALL
         dialog = UI::HtmlDialog.new(
           dialog_title: 'Ropefall',
           preferences_key: 'sketchrope_ropefall_dialog',
-          width: 380, height: 470, resizable: false,
+          width: 380, height: 545, resizable: false,
           style: UI::HtmlDialog::STYLE_DIALOG
         )
         dialog.set_file(File.join(PATH, 'dialog.html'))
@@ -53,6 +53,7 @@ module SKETCHROPE_ROPEFALL
           'diameter' => diameter_str
         }
         state = {
+          'method' => s['method'],
           'length_mode' => s['length_mode'], 'length_percent' => s['length_percent'],
           'length_fixed' => length_fixed_str,
           'display' => s['display'], 'diameter' => diameter_str,
@@ -75,6 +76,7 @@ module SKETCHROPE_ROPEFALL
                        end
         diameter = length_from_form('diameter', 'diameter', errors)
         settings = Settings.normalize(
+          'method' => @form['method'],
           'length_mode' => @form['length_mode'], 'length_percent' => @form['length_percent'].to_f,
           'length_fixed' => length_fixed,
           'display' => @form['display'], 'diameter' => diameter,

@@ -84,7 +84,7 @@ def self.activateFall()
     return if initialPoints.nil?
 
     SettingsDialog.open(Settings.load, initialPoints) { |settings|
-        Sketchup.active_model.select_tool RopefallTool.new(initialPoints, settings)
+        startRope(initialPoints, settings, nil)
     }
 rescue StandardError => e
     puts e.full_message
@@ -109,14 +109,41 @@ def self.activateResimulate()
 
     # stored in the coordinates the rope had when created (top level, identity); follow moves / copies
     points = data['points'].map{|p| Geom::Point3d.new(*p).transform(group.transformation)}
-    if (!isInitialPointAboveBottom(points, group))
-        UI.messagebox("Initial polyline must be above the bottom of the model!")
-        return
-    end
-
     SettingsDialog.open(Settings.normalize(data['settings']), points) { |settings|
-        Sketchup.active_model.select_tool RopefallTool.new(points, settings, group)
+        startRope(points, settings, group)
     }
+rescue StandardError => e
+    puts e.full_message
+    UI.messagebox("Ropefall error:\n" + e.message)
+end
+
+# Catenary: no simulation, the curve is built at once in one undo step
+def self.createCatenary(points, settings, replace = nil)
+    model = Sketchup.active_model
+    length = Settings.target_length(settings, points)
+    curve = Catenary.points(RopeData.xyz(points.first), RopeData.xyz(points.last), length, SKETCHROPE_ROPEFALL::config.noRopePoints).map{|p| Geom::Point3d.new(*p)}
+    model.start_operation(SKETCHROPE_ROPEFALL::ROPEFALL, true)
+    begin
+        _group, ropeLength, note = createRopeGroup(model, curve, points, settings, replace)
+        model.commit_operation
+    rescue StandardError
+        model.abort_operation
+        raise
+    end
+    status = "Ropefall catenary — length #{formatLength(ropeLength)}"
+    status += " (#{note})" if note
+    Sketchup.status_text = status
+end
+
+# after the settings dialog: Catenary at once, Drape as the falling-rope tool
+def self.startRope(points, settings, replace)
+    if (settings['method'] == 'catenary')
+        createCatenary(points, settings, replace)
+    elsif (!isInitialPointAboveBottom(points, replace))
+        UI.messagebox("Initial polyline must be above the bottom of the model!")
+    else
+        Sketchup.active_model.select_tool RopefallTool.new(points, settings, replace)
+    end
 rescue StandardError => e
     puts e.full_message
     UI.messagebox("Ropefall error:\n" + e.message)
@@ -192,12 +219,6 @@ def self.getInitialPointsFromSelection()
 
     if (initialPoints == nil || initialPoints.length < 2)
         UI.messagebox("Please create an open polyline and then select it!")
-
-        return nil
-    end
-
-    if (!isInitialPointAboveBottom(initialPoints))
-        UI.messagebox("Initial polyline must be above the bottom of the model!")
 
         return nil
     end

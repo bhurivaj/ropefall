@@ -153,67 +153,71 @@ class Anim
     def finish(view, points, note = nil, leaveTool = true)
         @finished = true
         @ropeGroup.erase! if @ropeGroup.valid?
-
-        @ropeGroup, buildNote = buildRope(points)
-        length = RopeData.polyline_length(points)
         logReach(points)
-        @ropeGroup.name = "Rope #{formatLength(length)}"
-        RopeData.write(@ropeGroup, @initialPoints, @settings, length)
-        @replace.erase! if @replace && @replace.valid?
-
-        # select the new rope so Re-simulate can run again right away
-        @model.selection.clear
-        @model.selection.add(@ropeGroup)
+        @ropeGroup, length, buildNote = SKETCHROPE_ROPEFALL::createRopeGroup(@model, points, @initialPoints, @settings, @replace)
         @model.select_tool nil if leaveTool
 
         notes = [note, buildNote].compact
-        status = "Ropefall done — length #{formatLength(length)}"
+        status = "Ropefall done — length #{SKETCHROPE_ROPEFALL::formatLength(length)}"
         status += " (#{notes.join('; ')})" unless notes.empty?
         Sketchup.status_text = status
     end
 
-    # [group, note]: center line, or a tube along it; falls back to the center line if the tube fails
-    def buildRope(points)
-        group = SKETCHROPE_ROPEFALL::entities.add_group
-        edges = group.entities.add_curve(points)
-        note = nil
+end
 
-        if (@settings['display'] == 'tube')
-            begin
-                circle = group.entities.add_circle(points[0], points[0] - points[1], @settings['diameter'].to_f / 2, @settings['sides'].to_i)
-                face = group.entities.add_face(circle)
-                raise "followme failed" unless face && face.followme(edges)
-                smoothEdges(group) if @settings['smooth']
-            rescue StandardError => e
-                puts "Ropefall tube: " + e.message
-                group.entities.clear!
-                group.entities.add_curve(points)
-                note = "tube could not be built, kept the center line"
-            end
+# Builds the final rope group (line or tube), names it by length, stores its data, replaces `replace`
+# and selects the new rope — shared by the Drape animation and Catenary. Returns [group, length, note].
+def self.createRopeGroup(model, points, initialPoints, settings, replace)
+    group, note = buildRope(model, points, settings)
+    length = RopeData.polyline_length(points)
+    group.name = "Rope #{formatLength(length)}"
+    RopeData.write(group, initialPoints, settings, length)
+    replace.erase! if replace && replace.valid?
+    model.selection.clear
+    model.selection.add(group)
+    return [group, length, note]
+end
+
+# [group, note]: center line, or a tube along it; falls back to the center line if the tube fails
+def self.buildRope(model, points, settings)
+    group = model.entities.add_group
+    edges = group.entities.add_curve(points)
+    note = nil
+
+    if (settings['display'] == 'tube')
+        begin
+            circle = group.entities.add_circle(points[0], points[0] - points[1], settings['diameter'].to_f / 2, settings['sides'].to_i)
+            face = group.entities.add_face(circle)
+            raise "followme failed" unless face && face.followme(edges)
+            smoothEdges(group) if settings['smooth']
+        rescue StandardError => e
+            puts "Ropefall tube: " + e.message
+            group.entities.clear!
+            group.entities.add_curve(points)
+            note = "tube could not be built, kept the center line"
         end
+    end
 
-        if (@settings['display'] == 'tube')
-            material = @settings['material'].to_s
-            group.material = SKETCHROPE_ROPEFALL::model.materials[material] unless material.empty? || SKETCHROPE_ROPEFALL::model.materials[material].nil?
+    if (settings['display'] == 'tube')
+        material = settings['material'].to_s
+        group.material = model.materials[material] unless material.empty? || model.materials[material].nil?
+    end
+
+    return [group, note]
+end
+
+# model units without the "~ " SketchUp adds to rounded values
+def self.formatLength(length)
+    Sketchup.format_length(length).sub(/\A~\s*/, '')
+end
+
+def self.smoothEdges(group)
+    group.entities.grep(Sketchup::Edge).each{|e|
+        if (e.faces.size == 2)
+            e.soft = true
+            e.smooth = true
         end
-
-        return [group, note]
-    end
-
-    # model units without the "~ " SketchUp adds to rounded values
-    def formatLength(length)
-        Sketchup.format_length(length).sub(/\A~\s*/, '')
-    end
-
-    def smoothEdges(group)
-        group.entities.grep(Sketchup::Edge).each{|e|
-            if (e.faces.size == 2)
-                e.soft = true
-                e.smooth = true
-            end
-        }
-    end
-
+    }
 end
 
 end
