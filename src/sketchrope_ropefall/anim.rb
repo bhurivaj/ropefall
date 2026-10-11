@@ -87,25 +87,59 @@ class Anim
    
     def finish(view, points, note = nil)
         @finished = true
-        @ropeGroup.entities.clear!
-        @ropeGroup.erase!
+        @ropeGroup.erase! if @ropeGroup.valid?
 
-        @ropeGroup = SKETCHROPE_ROPEFALL::entities.add_group
-        points_chunk = points[0..99]
-        edges = @ropeGroup.entities.add_curve points_chunk  
-        
-        if (@settings['display'] == 'tube')
-            cirlce = @ropeGroup.entities.add_circle points_chunk[0], points_chunk[0] - points_chunk[1], @settings['diameter'].to_f / 2
-        	face = @ropeGroup.entities.add_face cirlce
-            face.followme(edges)
-        end
+        @ropeGroup, buildNote = buildRope(points)
+        length = RopeData.polyline_length(points)
+        @ropeGroup.name = "Rope #{Sketchup.format_length(length)}"
+        RopeData.write(@ropeGroup, @initialPoints, @settings, length)
+        @replace.erase! if @replace && @replace.valid?
 
         # collect first: erasing while iterating entities can skip items
         collisionGroups = SKETCHROPE_ROPEFALL::entities.grep(Sketchup::Group).select{|g| g.name == COLLISIONGROUPNAME}
         SKETCHROPE_ROPEFALL::entities.erase_entities(collisionGroups) unless collisionGroups.empty?
-        Sketchup.active_model.layers.remove(DUPLAYERNAME)        
-        Sketchup.active_model.select_tool nil    
-        Sketchup.status_text = "Ropefall ready."
+        Sketchup.active_model.layers.remove(DUPLAYERNAME)
+        Sketchup.active_model.select_tool nil
+
+        notes = [note, buildNote].compact
+        status = "Ropefall done — length #{Sketchup.format_length(length)}"
+        status += " (#{notes.join('; ')})" unless notes.empty?
+        Sketchup.status_text = status
+    end
+
+    # [group, note]: center line, or a tube along it; falls back to the center line if the tube fails
+    def buildRope(points)
+        group = SKETCHROPE_ROPEFALL::entities.add_group
+        edges = group.entities.add_curve(points)
+        note = nil
+
+        if (@settings['display'] == 'tube')
+            begin
+                circle = group.entities.add_circle(points[0], points[0] - points[1], @settings['diameter'].to_f / 2, @settings['sides'].to_i)
+                face = group.entities.add_face(circle)
+                raise "followme failed" unless face && face.followme(edges)
+                smoothEdges(group) if @settings['smooth']
+            rescue StandardError => e
+                puts "Ropefall tube: " + e.message
+                group.entities.clear!
+                group.entities.add_curve(points)
+                note = "tube could not be built, kept the center line"
+            end
+        end
+
+        material = @settings['material'].to_s
+        group.material = SKETCHROPE_ROPEFALL::model.materials[material] unless material.empty? || SKETCHROPE_ROPEFALL::model.materials[material].nil?
+
+        return [group, note]
+    end
+
+    def smoothEdges(group)
+        group.entities.grep(Sketchup::Edge).each{|e|
+            if (e.faces.size == 2)
+                e.soft = true
+                e.smooth = true
+            end
+        }
     end
 
 end
