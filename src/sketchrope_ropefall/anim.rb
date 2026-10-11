@@ -141,7 +141,16 @@ class Anim
         puts "Ropefall: reach #{reach.round(2)} × target length (sideways room allows #{1 + RopeData::STRETCH})"
     end
 
-    def finish(view, points, note = nil)
+    # Another tool is being activated: keep the current shape (like Esc). The tool is already being
+    # left, so finish must not call select_tool itself.
+    def keepNow(view)
+        return if @finished || @cancelled
+        @finishScheduled = true
+        view.animation = nil # calls stop(), which returns early now
+        finish(view, SKETCHROPE_ROPEFALL::ropePoints(@rope), nil, false)
+    end
+
+    def finish(view, points, note = nil, leaveTool = true)
         @finished = true
         @ropeGroup.erase! if @ropeGroup.valid?
 
@@ -155,7 +164,7 @@ class Anim
         # select the new rope so Re-simulate can run again right away
         @model.selection.clear
         @model.selection.add(@ropeGroup)
-        @model.select_tool nil
+        @model.select_tool nil if leaveTool
 
         notes = [note, buildNote].compact
         status = "Ropefall done — length #{formatLength(length)}"

@@ -24,7 +24,7 @@ ends of the rope won\'t fall down as they are fixed.
 2. Click **Extensions → Ropefall → Fall…** (or the Fall button on the Ropefall toolbar).
 3. Set the rope length (percent of the polyline or a fixed length), display (line / tube), diameter and,
    for a tube, the number of sides, smoothing and material. Click **Start**. Settings are remembered.
-4. Wait until the simulation ends or stop it with the Esc key. The rope group is named with its length
+4. Wait until the simulation ends, or keep the rope as it is with Esc, Enter or by picking another tool. The rope group is named with its length
    (e.g. `Rope 3.52m`) and the status bar shows the length.
 5. To change a rope later, select it and click **Re-simulate…**: it runs again from the original polyline
    with the new settings and replaces the old rope (one Undo brings the old rope back).

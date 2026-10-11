@@ -153,18 +153,19 @@ def self.stopFall()
     end
 end
 
-# called when the tool is deactivated: keep the finished rope, or discard
-# everything if the user switched to another tool while the rope was falling
+# called when the tool is deactivated: commit the rope — if another tool was picked while the rope
+# was still falling, it is kept as it is at that moment (like Esc)
 def self.endFall(view)
     return if !@@operationOpen
     @@operationOpen = false
 
-    if (@@anim != nil && !@@anim.finished)
-        @@anim.cancel
-        view.animation = nil
-        model.abort_operation
-    else
+    begin
+        @@anim.keepNow(view) if (@@anim != nil && !@@anim.finished)
         model.commit_operation
+    rescue StandardError => e
+        puts e.full_message
+        @@anim.cancel if @@anim
+        model.abort_operation
     end
 
     @@anim = nil

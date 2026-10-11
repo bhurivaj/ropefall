@@ -7,6 +7,9 @@
 - Esc (and now Enter) keep the rope immediately instead of waiting for the next simulation frame; the rope is also kept when SketchUp stops the animation itself — before, a slow frame or a camera tool left an unconfirmed rope that disappeared on the next tool
 - Much smaller simulation area sideways and upward: the rope's reachable ellipsoid (+10% stretch) instead of a sphere with a 25% margin, nothing above the polyline's highest point; downward it reaches the model bottom again because a hanging rope stretches under its weight — far fewer collision faces in big models
 
+### Changed
+- Picking another tool while the rope is falling keeps the rope as it is (like Esc) instead of discarding it — Undo removes it
+
 ### Added
 - Ruby Console shows the average frame time every 50 frames
 - Status bar hint while falling: "Esc or Enter keeps the rope as it is now"
