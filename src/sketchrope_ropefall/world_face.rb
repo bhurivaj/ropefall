@@ -7,6 +7,7 @@ module SKETCHROPE_ROPEFALL
   # collision code uses (plane, normal, edges, bounds, classify_point), so collisions can be computed
   # without copying faces into the model (which made big models take minutes).
   class WorldFace
+    # position is shared, not copied like Sketchup::Vertex#position — callers must not mutate it
     Vertex = Struct.new(:position)
 
     # Answers the Sketchup::Edge methods the collision code uses
@@ -45,6 +46,8 @@ module SKETCHROPE_ROPEFALL
       @edges = ([outer] + holes).flat_map { |loop| loop.each_with_index.map { |p, i| Edge.new(p, loop[(i + 1) % loop.size]) } }
       @bounds = Geom::BoundingBox.new
       outer.each { |p| @bounds.add(p) }
+      @min = (0..2).map { |i| @outer.map { |p| p[i] }.min - FaceGeometry::TOLERANCE }
+      @max = (0..2).map { |i| @outer.map { |p| p[i] }.max + FaceGeometry::TOLERANCE }
     end
 
     # A new vector on every call — callers modify it (reverse!, length=)
@@ -53,7 +56,11 @@ module SKETCHROPE_ROPEFALL
     end
 
     def classify_point(point)
-      case FaceGeometry.classify(WorldFace.xyz(point), @outer, @holes, @normal)
+      xyz = WorldFace.xyz(point)
+      # cheap reject before the per-vertex / per-edge checks
+      return Sketchup::Face::PointOutside if (0..2).any? { |i| xyz[i] < @min[i] || xyz[i] > @max[i] }
+
+      case FaceGeometry.classify(xyz, @outer, @holes, @normal)
       when :inside then Sketchup::Face::PointInside
       when :on_edge then Sketchup::Face::PointOnEdge
       when :on_vertex then Sketchup::Face::PointOnVertex

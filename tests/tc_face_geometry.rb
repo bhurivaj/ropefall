@@ -8,10 +8,15 @@ class TestFaceGeometry < Minitest::Test
   G = SKETCHROPE_ROPEFALL::FaceGeometry
   UP = [0.0, 0.0, 1.0].freeze
 
-  SQUARE = [[0, 0, 5], [10, 0, 5], [10, 10, 5], [0, 10, 5]].freeze
+  # loops are Floats in real use (WorldFace converts them once)
+  def self.poly(points)
+    points.map { |p| p.map(&:to_f) }.freeze
+  end
+
+  SQUARE = poly([[0, 0, 5], [10, 0, 5], [10, 10, 5], [0, 10, 5]])
   # concave L: the notch (6..10, 6..10) is outside
-  L_SHAPE = [[0, 0, 0], [10, 0, 0], [10, 6, 0], [6, 6, 0], [6, 10, 0], [0, 10, 0]].freeze
-  HOLE = [[3, 3, 5], [7, 3, 5], [7, 7, 5], [3, 7, 5]].freeze
+  L_SHAPE = poly([[0, 0, 0], [10, 0, 0], [10, 6, 0], [6, 6, 0], [6, 10, 0], [0, 10, 0]])
+  HOLE = poly([[3, 3, 5], [7, 3, 5], [7, 7, 5], [3, 7, 5]])
 
   def assert_vector(expected, actual)
     expected.each_with_index { |v, i| assert_in_delta v, actual[i], 1e-9 }
@@ -63,7 +68,7 @@ class TestFaceGeometry < Minitest::Test
   end
 
   def test_classify_vertical_face_uses_the_right_projection
-    wall = [[0, 0, 0], [10, 0, 0], [10, 0, 10], [0, 0, 10]]
+    wall = TestFaceGeometry.poly([[0, 0, 0], [10, 0, 0], [10, 0, 10], [0, 0, 10]])
     n = G.normal(wall)
     assert_equal :inside, G.classify([5, 0, 5], wall, [], n)
     assert_equal :outside, G.classify([5, 0, 15], wall, [], n)

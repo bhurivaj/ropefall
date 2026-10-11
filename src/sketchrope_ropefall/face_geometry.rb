@@ -22,11 +22,10 @@ module SKETCHROPE_ROPEFALL
       n.map { |v| v / length }
     end
 
-    # :on_vertex, :on_edge, :inside or :outside — `point` is assumed to lie on the polygon's plane
+    # :on_vertex, :on_edge, :inside or :outside — `point` is assumed to lie on the polygon's plane.
+    # Loop coordinates must be Floats (Integer division would truncate); called for every collision check.
     def classify(point, outer, holes, normal, tolerance = TOLERANCE)
       point = floats(point)
-      outer = outer.map { |p| floats(p) }
-      holes = holes.map { |hole| hole.map { |p| floats(p) } }
       loops = [outer] + holes
       loops.each { |loop| loop.each { |v| return :on_vertex if distance(point, v) <= tolerance } }
       loops.each do |loop|
@@ -76,7 +75,6 @@ module SKETCHROPE_ROPEFALL
       Math.sqrt(dot(d, d))
     end
 
-    # Integer coordinates would make the divisions above truncate
     def floats(point)
       point.map(&:to_f)
     end
