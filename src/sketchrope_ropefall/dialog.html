@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ropefall</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Tahoma, sans-serif; font-size: 13px; margin: 0; padding: 14px; background: #f4f4f5; color: #222; }
+  fieldset { border: 1px solid #ddd; border-radius: 6px; background: #fff; margin: 0 0 10px; padding: 8px 10px; }
+  legend { font-weight: 600; padding: 0 4px; }
+  .row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+  .row label.name { width: 90px; color: #444; }
+  input[type=number] { width: 70px; }
+  input[type=text] { width: 110px; }
+  select { min-width: 150px; }
+  .hint { color: #777; margin-top: 2px; }
+  #errors { display: none; background: #fdecea; color: #8a1c14; border-radius: 4px; padding: 6px 8px; margin-bottom: 10px; white-space: pre-wrap; }
+  .buttons { display: flex; justify-content: flex-end; gap: 8px; }
+  button { padding: 4px 14px; }
+  .disabled { opacity: .45; }
+</style>
+</head>
+<body>
+<div id="errors"></div>
+
+<fieldset>
+  <legend>Rope length</legend>
+  <div class="row">
+    <input type="radio" name="length_mode" id="mode_percent" value="percent">
+    <label for="mode_percent">Percent of polyline</label>
+    <input type="number" id="length_percent" min="10" max="1000" step="1"> %
+  </div>
+  <div class="row">
+    <input type="radio" name="length_mode" id="mode_fixed" value="fixed">
+    <label for="mode_fixed">Fixed length</label>
+    <input type="text" id="length_fixed">
+  </div>
+  <div class="hint">Polyline length: <span id="polyline_length">-</span></div>
+</fieldset>
+
+<fieldset>
+  <legend>Shape</legend>
+  <div class="row">
+    <label class="name">Display</label>
+    <input type="radio" name="display" id="display_line" value="line"><label for="display_line">Line</label>
+    <input type="radio" name="display" id="display_tube" value="tube"><label for="display_tube">Tube</label>
+  </div>
+  <div class="row"><label class="name" for="diameter">Diameter</label><input type="text" id="diameter"></div>
+  <div id="tube_options">
+    <div class="row"><label class="name" for="sides">Sides</label><input type="number" id="sides" min="3" max="48" step="1"></div>
+    <div class="row"><label class="name" for="smooth">Smooth</label><input type="checkbox" id="smooth"></div>
+    <div class="row"><label class="name" for="material">Material</label><select id="material"></select></div>
+  </div>
+</fieldset>
+
+<div class="buttons">
+  <button id="cancel">Cancel</button>
+  <button id="start">Start</button>
+</div>
+
+<script>
+  function $(id) { return document.getElementById(id); }
+
+  function callRuby(name, arg) {
+    try {
+      if (arg === undefined) { sketchup[name](); } else { sketchup[name](arg); }
+    } catch (e) {
+      ropefall.errors(['Cannot reach SketchUp: ' + e.message]);
+    }
+  }
+
+  function checked(name) {
+    var el = document.querySelector('input[name="' + name + '"]:checked');
+    return el ? el.value : '';
+  }
+
+  function updateEnabled() {
+    var percent = checked('length_mode') === 'percent';
+    $('length_percent').disabled = !percent;
+    $('length_fixed').disabled = percent;
+    var tube = checked('display') === 'tube';
+    $('tube_options').classList.toggle('disabled', !tube);
+    ['sides', 'smooth', 'material'].forEach(function (id) { $(id).disabled = !tube; });
+  }
+
+  var ropefall = {
+    init: function (s) {
+      $('mode_' + s.length_mode).checked = true;
+      $('length_percent').value = s.length_percent;
+      $('length_fixed').value = s.length_fixed;
+      $('polyline_length').textContent = s.polyline_length;
+      $('display_' + s.display).checked = true;
+      $('diameter').value = s.diameter;
+      $('sides').value = s.sides;
+      $('smooth').checked = s.smooth;
+      var select = $('material');
+      select.innerHTML = '';
+      [''].concat(s.materials).forEach(function (name) {
+        var option = document.createElement('option');
+        option.value = name;
+        option.textContent = name === '' ? 'None' : name;
+        select.appendChild(option);
+      });
+      select.value = s.material;
+      updateEnabled();
+    },
+    errors: function (list) {
+      var box = $('errors');
+      box.textContent = list.join('\n');
+      box.style.display = list.length ? 'block' : 'none';
+    }
+  };
+
+  document.querySelectorAll('input[type=radio]').forEach(function (el) {
+    el.addEventListener('change', updateEnabled);
+  });
+
+  $('start').addEventListener('click', function () {
+    ropefall.errors([]);
+    callRuby('start', JSON.stringify({
+      length_mode: checked('length_mode'),
+      length_percent: $('length_percent').value,
+      length_fixed: $('length_fixed').value,
+      display: checked('display'),
+      diameter: $('diameter').value,
+      sides: $('sides').value,
+      smooth: $('smooth').checked,
+      material: $('material').value
+    }));
+  });
+
+  $('cancel').addEventListener('click', function () { callRuby('cancel'); });
+
+  document.addEventListener('DOMContentLoaded', function () { callRuby('ready'); });
+</script>
+</body>
+</html>

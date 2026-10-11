@@ -1,0 +1,94 @@
+# frozen_string_literal: true
+
+require 'json'
+require_relative 'settings'
+
+module SKETCHROPE_ROPEFALL
+  # Settings window shown before every Fall / Re-simulate
+  module SettingsDialog
+    class << self
+      def open(settings, points, &on_start)
+        @dialog.close if @dialog && @dialog.visible?
+        @settings = Settings.normalize(settings)
+        @points = points
+        @on_start = on_start
+        @dialog = create_dialog
+        @dialog.show
+      end
+
+      private
+
+      def create_dialog
+        dialog = UI::HtmlDialog.new(
+          dialog_title: 'Ropefall',
+          preferences_key: 'sketchrope_ropefall_dialog',
+          width: 380, height: 470, resizable: false,
+          style: UI::HtmlDialog::STYLE_DIALOG
+        )
+        dialog.set_file(File.join(PATH, 'dialog.html'))
+        dialog.add_action_callback('ready') { |_ctx| guard { send_state } }
+        dialog.add_action_callback('start') { |_ctx, json| guard { start(json) } }
+        dialog.add_action_callback('cancel') { |_ctx| guard { @dialog.close } }
+        dialog
+      end
+
+      def guard
+        yield
+      rescue StandardError => e
+        puts "Ropefall dialog: #{e.class}: #{e.message}"
+        js("ropefall.errors(#{JSON.generate([e.message])})")
+      end
+
+      def material_names
+        Sketchup.active_model.materials.map(&:name).sort_by(&:downcase)
+      end
+
+      def send_state
+        names = material_names
+        s = @settings
+        state = {
+          'length_mode' => s['length_mode'], 'length_percent' => s['length_percent'],
+          'length_fixed' => Sketchup.format_length(s['length_fixed']),
+          'display' => s['display'], 'diameter' => Sketchup.format_length(s['diameter']),
+          'sides' => s['sides'], 'smooth' => s['smooth'],
+          'material' => names.include?(s['material']) ? s['material'] : '',
+          'materials' => names,
+          'polyline_length' => Sketchup.format_length(RopeData.polyline_length(@points))
+        }
+        js("ropefall.init(#{JSON.generate(state)})")
+      end
+
+      def start(json)
+        form = JSON.parse(json.to_s)
+        errors = []
+        settings = Settings.normalize(
+          'length_mode' => form['length_mode'], 'length_percent' => form['length_percent'].to_f,
+          'length_fixed' => parse_length(form['length_fixed'], 'fixed length', errors, @settings['length_fixed']),
+          'display' => form['display'], 'diameter' => parse_length(form['diameter'], 'diameter', errors, @settings['diameter']),
+          'sides' => form['sides'].to_i, 'smooth' => form['smooth'] == true, 'material' => form['material'].to_s
+        )
+        unless settings['material'].empty? || Sketchup.active_model.materials[settings['material']]
+          errors << "Material not found: #{settings['material']}"
+        end
+        errors.concat(Settings.validate(settings, @points)) if errors.empty?
+        return js("ropefall.errors(#{JSON.generate(errors)})") unless errors.empty?
+
+        Settings.save(settings)
+        @dialog.close
+        @on_start.call(settings)
+      end
+
+      # Length typed by the user in model units ("3.5m", "10 mm", "1'") → inch Float
+      def parse_length(text, label, errors, fallback)
+        text.to_s.to_l.to_f
+      rescue ArgumentError
+        errors << "Invalid #{label}: #{text}"
+        fallback
+      end
+
+      def js(code)
+        @dialog.execute_script(code) if @dialog && @dialog.visible?
+      end
+    end
+  end
+end
