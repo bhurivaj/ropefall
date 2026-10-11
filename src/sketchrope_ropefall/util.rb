@@ -34,46 +34,36 @@ end
 #	return faces
 # end
 
-def self.walk_faces(entities, group, bounds, t, skip = nil)
-	entities.each { |e|
-        next if e.is_a?(Sketchup::Edge) or e.is_a?(Sketchup::Image) or e.hidden? or e == group or e == skip
+# Collects every visible face that touches `bounds` as a WorldFace in world coordinates; nothing is
+# added to the model. `skip` (a rope about to be replaced) and entities on hidden tags are ignored.
+def self.walk_faces(entities, bounds, t, skip, faces)
+    entities.each { |e|
+        next if e == skip
+        next unless e.is_a?(Sketchup::Face) || e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+        next if e.hidden? || !e.layer.visible?
 
         if e.is_a?(Sketchup::Face)
-            if (SKETCHROPE_ROPEFALL::boundsIntersect?(SKETCHROPE_ROPEFALL::tranformBounds(e.bounds, t), bounds))
-                points = []
-                e.outer_loop.vertices.each{|v| points << v.position}
-                facegroup = group.entities.add_group
-                newface = facegroup.entities.add_face points
-                
-                if (e.loops.size() > 1)
-                    e.loops.each{|l|
-                        innerpoints = []
-                        if (!l.outer?)
-                            l.vertices.each{|v| innerpoints << v.position}
-                            newinnerface = facegroup.entities.add_face innerpoints
-                            newinnerface.erase!                            
-                        end
-                    }
-                end
-                
-                @@facecount = @@facecount + 1
-                
-                if (@@facecount == SKETCHROPE_ROPEFALL::facesWarnThreshold)
-                    answer = UI.messagebox("This seems to be a complex model, the Ropefall operation may take long. Please make sure your work is saved. \n\nYou can try hiding parts of the model to make Ropefall faster. \n\nDo you want to continue?", MB_YESNO)
-                    raise "operation aborted by user" unless answer == IDYES
-                end
-                
+            outer = e.outer_loop.vertices.map{|v| t * v.position}
+            faceBounds = Geom::BoundingBox.new
+            outer.each{|p| faceBounds.add(p)}
+            next unless boundsIntersect?(faceBounds, bounds)
+
+            holes = e.loops.reject{|l| l.outer?}.map{|l| l.vertices.map{|v| t * v.position}}
+            face = WorldFace.build(outer, holes)
+            next if face.nil?
+
+            faces << face
+
+            if (faces.size == SKETCHROPE_ROPEFALL::facesWarnThreshold)
+                answer = UI.messagebox("This seems to be a complex model, the Ropefall operation may take long. Please make sure your work is saved. \n\nYou can try hiding parts of the model to make Ropefall faster. \n\nDo you want to continue?", MB_YESNO)
+                raise "operation aborted by user" unless answer == IDYES
             end
-        elsif (e.is_a?(Sketchup::Group))
-            #puts "group found " + e.to_s + ", " + e.entities.length.to_s + " t = " + e.transformation.to_a.to_s
-            newgroup = group.entities.add_group
-            newgroup.transformation = e.transformation
-            walk_faces(e.entities, newgroup, bounds, t * e.transformation, skip)
-        elsif (e.is_a?(Sketchup::ComponentInstance))
-            #puts "instance found " + e.definition.entities.length.to_s
-            newgroup = group.entities.add_group
-            newgroup.transformation = e.transformation
-            walk_faces(e.definition.entities, newgroup, bounds, t * e.transformation, skip)
+        else
+            # skip whole groups / components that are nowhere near the fall room
+            next unless boundsIntersect?(transformBounds(e.bounds, t), bounds)
+
+            childEntities = e.is_a?(Sketchup::Group) ? e.entities : e.definition.entities
+            walk_faces(childEntities, bounds, t * e.transformation, skip, faces)
         end
     }
 end
@@ -82,39 +72,12 @@ def self.boundsIntersect?(b1, b2)
     return !b1.intersect(b2).empty?
 end
 
-def self.tranformBounds(b, t)
+# World bounds of a box given in the coordinates of transformation `t` (all 8 corners, so rotation is handled)
+def self.transformBounds(b, t)
     transformedBounds = Geom::BoundingBox.new
-    transformedBounds.add(t * b.min)        
-    transformedBounds.add(t * b.max)
-    
-    return transformedBounds         
-end
+    (0..7).each{|i| transformedBounds.add(t * b.corner(i))}
 
-def self.untrans(group)
-    ents = []
-    group.entities.each{|e| ents << e}
-    group.entities.transform_entities(group.transformation, ents)
-    group.transformation = Geom::Transformation.new
-    
-    group.entities.each {|g| 
-        if (g.is_a?(Sketchup::Group))
-            untrans(g)
-        end
-    }
-end
-
-def self.flattenGroup(group)
-    faces = []
-    
-    group.entities.each {|e| 
-        if (e.is_a?(Sketchup::Face))
-            faces << e
-        elsif (e.is_a?(Sketchup::Group))
-            faces.concat(flattenGroup(e))
-        end
-    }
-    
-    return faces
+    return transformedBounds
 end
 
 # Lowest z of the visible top-level geometry; `skip` (a rope about to be replaced) does not count; 0 for an empty model
@@ -129,23 +92,16 @@ def self.modelBottom(skip = nil)
     return bounds.empty? ? 0 : bounds.min.z
 end
 
-# `bottom` must be computed before this is called: it adds the (hidden) collision group to the model
+# Collision faces for the fall room: a floor at `bottom` plus every visible model face touching `bounds`
 def self.getAllFaces(bounds, skip, bottom)
-    layer = Sketchup.active_model.layers.add DUPLAYERNAME
-    allFacesGroup = entities().add_group
-    allFacesGroup.layer = layer 
-    allFacesGroup.hidden = true 
-    allFacesGroup.name = COLLISIONGROUPNAME
-    
-    bottomGroup = allFacesGroup.entities.add_group  
-    bottomGroup.entities.add_face [bounds.min.x, bounds.min.y, bottom], [bounds.min.x, bounds.max.y, bottom], [bounds.max.x, bounds.max.y, bottom], [bounds.max.x, bounds.min.y, bottom]
-    
-    @@facecount = 0
-    walk_faces(entities(), allFacesGroup, bounds, Geom::Transformation.new, skip) 
-    untrans(allFacesGroup)
-    faces = flattenGroup(allFacesGroup)
+    started = Time.now
+    faces = []
+    floor = WorldFace.build([Geom::Point3d.new(bounds.min.x, bounds.min.y, bottom), Geom::Point3d.new(bounds.min.x, bounds.max.y, bottom), Geom::Point3d.new(bounds.max.x, bounds.max.y, bottom), Geom::Point3d.new(bounds.max.x, bounds.min.y, bottom)])
+    faces << floor if floor
 
-    puts "faces.length = " + faces.length.to_s    
+    walk_faces(entities(), bounds, Geom::Transformation.new, skip, faces)
+
+    puts "Ropefall: #{faces.length} collision faces collected in #{(Time.now - started).round(2)} s"
 
     return faces
 end

@@ -9,7 +9,6 @@ class OutOfRoomError < StandardError; end
 class Grid
     def initialize(cubeSize, roomBounds, skip = nil)
         @skip = skip
-        # before fillIndex: getAllFaces adds the collision group to the model
         @bottom = SKETCHROPE_ROPEFALL::modelBottom(@skip)
         @fallRoomBounds, @cubeSize = extendBoundingBoxToBottom(cubeSize, roomBounds)
         

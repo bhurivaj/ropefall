@@ -100,10 +100,6 @@ class Anim
         RopeData.write(@ropeGroup, @initialPoints, @settings, length)
         @replace.erase! if @replace && @replace.valid?
 
-        # collect first: erasing while iterating entities can skip items
-        collisionGroups = SKETCHROPE_ROPEFALL::entities.grep(Sketchup::Group).select{|g| g.name == COLLISIONGROUPNAME}
-        SKETCHROPE_ROPEFALL::entities.erase_entities(collisionGroups) unless collisionGroups.empty?
-        Sketchup.active_model.layers.remove(DUPLAYERNAME)
         # select the new rope so Re-simulate can run again right away
         Sketchup.active_model.selection.clear
         Sketchup.active_model.selection.add(@ropeGroup)

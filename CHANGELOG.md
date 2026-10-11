@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- Fall no longer seems to hang on big models: collision faces are read into memory instead of being copied into the model one group per face (no hidden helper group or tag is created any more)
+- Whole groups / components far from the rope are skipped while collecting faces
+
+### Changed
+- Geometry on hidden tags no longer blocks the rope (it already did not count as the floor)
+- The "complex model" warning now appears at 20,000 collision faces instead of 1,000
+
 ## [2.1.0] - 2026-10-11
 
 ### Added

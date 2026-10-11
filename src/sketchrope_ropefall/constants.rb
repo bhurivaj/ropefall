@@ -5,8 +5,6 @@ module SKETCHROPE_ROPEFALL
 EPSILON ||= 0.0001
 ROPEFALL ||= "Ropefall"
 FALL ||= "Fall"
-DUPLAYERNAME ||= "__asjkldvh9e7rqvbe803gf3bbfqewd__"
-COLLISIONGROUPNAME ||= "__dhiasfg82375tfbgq3r8__"
 
 def self.identityTrans()
 	t = Geom::Transformation.new
@@ -22,7 +20,7 @@ end
 @@torsionSpringConstant = 1
 @@generalFrictionConstant = 0.85
 @@dt = 0.025
-@@facesWarnThreshold = 1000
+@@facesWarnThreshold = 20000
 
 def self.model()
     return Sketchup.active_model

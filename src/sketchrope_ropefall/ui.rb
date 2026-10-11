@@ -161,7 +161,7 @@ def self.endFall(view)
     @@anim = nil
 end
 
-# abort_operation also removes the collision group and helper layer created during the fall
+# abort_operation also removes everything the fall added to the model
 def self.failFall(error)
     puts error.full_message
     
