@@ -20,22 +20,20 @@ ends of the rope won\'t fall down as they are fixed.
 
 ![](assets/Ropefall_params.png)
 
-1\. Activate the line tool and draw a polyline defining the initial
-shape of the rope.
-
-2\. Activate the select tool and select the polyline.
-
-3\. Click menu Draw → Ropefall → Fall.
-
-4\. Specify rope parameters and click the \'ok\' button to start
-simulation.
-
-5\. Wait until simulation ends or stop it with the Esc key.
+1. Draw a polyline with the Line tool for the initial shape of the rope, then select it.
+2. Click **Extensions → Ropefall → Fall…** (or the Fall button on the Ropefall toolbar).
+3. Set the rope length (percent of the polyline or a fixed length), display (line / tube), diameter and,
+   for a tube, the number of sides, smoothing and material. Click **Start**. Settings are remembered.
+4. Wait until the simulation ends or stop it with the Esc key. The rope group is named with its length
+   (e.g. `Rope 3.52m`) and the status bar shows the length.
+5. To change a rope later, select it and click **Re-simulate…**: it runs again from the original polyline
+   with the new settings and replaces the old rope (one Undo brings the old rope back).
 
 TIP:
 - make the simulation faster by hiding parts of the model that do not
-block the rope from falling\
+block the rope from falling
 - use some helper objects to control the shape of the rope
+- ropes created before 2.1 cannot be re-simulated (they have no stored data)
 
 Supported SketchUp versions: 2024+
 

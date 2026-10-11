@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Settings dialog before every fall: rope length (percent of polyline or fixed length), line / tube, diameter, tube sides, smoothing, material
+- Settings are remembered between sessions
+- Rope length is shown in the status bar and in the rope group's name; initial polyline, settings and length are stored on the rope group
+- Re-simulate: select a rope and run it again from its original polyline with new settings (replaces the old rope, one Undo)
+- Ropefall toolbar with Fall and Re-simulate buttons
+
+### Changed
+- Menu moved from Draw → Ropefall to Extensions → Ropefall
+- The simulation area is sized from the rope length, so long ropes no longer stop with "indexed fallroom too small"; if a rope still leaves it, the fall stops and keeps the current shape instead of failing
+
 ## [2.0.1] - 2026-10-11
 
 ### Fixed
