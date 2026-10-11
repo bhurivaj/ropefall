@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [2.1.1] - 2026-10-11
 
 ### Fixed
 - Fall no longer seems to hang on big models: collision faces are read into memory instead of being copied into the model one group per face (no hidden helper group or tag is created any more)
