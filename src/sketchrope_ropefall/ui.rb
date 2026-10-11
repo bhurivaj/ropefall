@@ -7,13 +7,14 @@ module SKETCHROPE_ROPEFALL
 @@operationOpen = false
 
 class RopefallTool
-    def initialize(initialPoints, config)
+    def initialize(initialPoints, settings, replace = nil)
         @initialPoints = initialPoints
-        @config = config
+        @settings = settings
+        @replace = replace
     end
 
     def activate
-        SKETCHROPE_ROPEFALL::startFall(@initialPoints, @config)
+        SKETCHROPE_ROPEFALL::startFall(@initialPoints, @settings, @replace)
     rescue StandardError => e
         SKETCHROPE_ROPEFALL::failFall(e)
     end
@@ -31,62 +32,109 @@ class RopefallTool
     end    
     
     def reset()
-        @initialPoints = nil
-        @config = nil
+        @initialPoints = @settings = @replace = nil
     end
 end
 
+def self.iconPath(name, size)
+    File.join(PATH, 'icons', "#{name}_#{size}.png")
+end
+
 def self.createFallCommand()
-    cmd = UI::Command.new("fall") {
+    cmd = UI::Command.new("Fall…") {
         activateFall()
         }
-    cmd.menu_text = SKETCHROPE_ROPEFALL::FALL
+    cmd.tooltip = "Fall"
+    cmd.status_bar_text = "Simulate a rope falling from the selected polyline"
+    cmd.small_icon = iconPath('fall', 16)
+    cmd.large_icon = iconPath('fall', 24)
+    
+    return cmd
+end
+
+def self.createResimulateCommand()
+    cmd = UI::Command.new("Re-simulate…") {
+        activateResimulate()
+        }
+    cmd.tooltip = "Re-simulate"
+    cmd.status_bar_text = "Simulate the selected rope again with new settings"
+    cmd.small_icon = iconPath('resimulate', 16)
+    cmd.large_icon = iconPath('resimulate', 24)
+    cmd.set_validation_proc {
+        begin
+            selectedRope() ? MF_ENABLED : MF_GRAYED
+        rescue StandardError
+            MF_GRAYED
+        end
+    }
     
     return cmd
 end
 
 def self.activateFall()
-    begin
-        initialPoints = getInitialPointsFromSelection()
-        
-        if (initialPoints != nil)
-            if (showConfigInputBox())
-                Sketchup.active_model.select_tool RopefallTool.new(initialPoints, SKETCHROPE_ROPEFALL::config)
-            end
-        end
-    rescue StandardError => e
-        puts e.full_message
-        UI.messagebox("Ropefall error:\n" + e.message)
+    initialPoints = getInitialPointsFromSelection()
+    return if initialPoints.nil?
+
+    SettingsDialog.open(Settings.load, initialPoints) { |settings|
+        Sketchup.active_model.select_tool RopefallTool.new(initialPoints, settings)
+    }
+rescue StandardError => e
+    puts e.full_message
+    UI.messagebox("Ropefall error:\n" + e.message)
+end
+
+# [group, data] for a single selected rope created by Ropefall 2.1+, otherwise nil
+def self.selectedRope()
+    selection = Sketchup.active_model.selection
+    return nil unless selection.size == 1 && selection.first.is_a?(Sketchup::Group)
+
+    data = RopeData.read(selection.first)
+    return data ? [selection.first, data] : nil
+end
+
+def self.activateResimulate()
+    group, data = selectedRope()
+    if (group.nil?)
+        UI.messagebox("Please select one rope created by Ropefall 2.1 or later.")
+        return
     end
+
+    points = data['points'].map{|p| Geom::Point3d.new(*p)}
+    if (!isInitialPointAboveBottom(points, group))
+        UI.messagebox("Initial polyline must be above the bottom of the model!")
+        return
+    end
+
+    SettingsDialog.open(Settings.normalize(data['settings']), points) { |settings|
+        Sketchup.active_model.select_tool RopefallTool.new(points, settings, group)
+    }
+rescue StandardError => e
+    puts e.full_message
+    UI.messagebox("Ropefall error:\n" + e.message)
 end
 
 def self.intallCommands() 
  if not file_loaded?(__FILE__) 
-    submenu = UI.menu("Draw").add_submenu(SKETCHROPE_ROPEFALL::ROPEFALL)
-    
-    submenu.add_item(createFallCommand())
+    fall = createFallCommand()
+    resimulate = createResimulateCommand()
+
+    submenu = UI.menu("Extensions").add_submenu(SKETCHROPE_ROPEFALL::ROPEFALL)
+    submenu.add_item(fall)
+    submenu.add_item(resimulate)
+
+    toolbar = UI::Toolbar.new(SKETCHROPE_ROPEFALL::ROPEFALL)
+    toolbar.add_item(fall)
+    toolbar.add_item(resimulate)
+    toolbar.get_last_state == TB_NEVER_SHOWN ? toolbar.show : toolbar.restore
  end
  
  file_loaded(__FILE__) 
 end
 
-def self.showConfigInputBox()
-    prompts = ["Rope diameter:", "What to draw:"]
-    defaults = [(SKETCHROPE_ROPEFALL::config().radius * 2).to_l, SKETCHROPE_ROPEFALL::config().whatToDraw]
-    lists = ["", WhatToDraw::MIDLINE + "|" + WhatToDraw::TUBE]
-    results = UI.inputbox prompts, defaults, lists, SKETCHROPE_ROPEFALL::ROPEFALL + " parameters"
-    return false if not results        
-    
-    SKETCHROPE_ROPEFALL::config().radius = results[0] / 2
-    SKETCHROPE_ROPEFALL::config().whatToDraw = results[1]
-    
-    return true
-end
-
-def self.startFall(initialPoints, config)     
+def self.startFall(initialPoints, settings, replace)     
     model.start_operation(SKETCHROPE_ROPEFALL::ROPEFALL, false, false, false)
     @@operationOpen = true
-    @@anim = Anim.new(initialPoints, config) 
+    @@anim = Anim.new(initialPoints, settings, replace) 
     model.active_view.animation = @@anim
 end
 
@@ -145,9 +193,8 @@ def self.getInitialPointsFromSelection()
     return initialPoints
 end
 
-def self.isInitialPointAboveBottom(initialPoints)
-    modelBounds = SKETCHROPE_ROPEFALL::model.bounds
-    bottom = modelBounds.min.z
+def self.isInitialPointAboveBottom(initialPoints, skip = nil)
+    bottom = SKETCHROPE_ROPEFALL::modelBottom(skip)
     initialPoints.each{|p| 
         if (p.z <= bottom + EPSILON)
             return false
