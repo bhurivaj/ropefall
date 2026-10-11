@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [2.2.0] - 2026-10-11
 
 ### Added
 - Catenary method: the settings window has Method — Drape over objects (simulation) / Catenary (instant hanging curve between the first and last point of the selection, ignores objects)
