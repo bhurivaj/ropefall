@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- Fall… failed after the first use on macOS (settings were saved as JSON text, which SketchUp evaluates on read) — settings are now stored as Base64 and an unreadable value falls back to the defaults
+- Esc (and now Enter) keep the rope immediately instead of waiting for the next simulation frame; the rope is also kept when SketchUp stops the animation itself — before, a slow frame or a camera tool left an unconfirmed rope that disappeared on the next tool
+- Much smaller simulation area: the rope's reachable ellipsoid instead of a sphere, nothing above the polyline's highest point, 10% spring stretch instead of a 25% margin — far fewer collision faces in big models
+
+### Added
+- Ruby Console shows the average frame time every 50 frames
+
 ## [2.1.1] - 2026-10-11
 
 ### Fixed

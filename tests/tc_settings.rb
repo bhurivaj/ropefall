@@ -93,4 +93,20 @@ class TestSettings < Minitest::Test
     assert_includes S.validate(valid('length_percent' => 50), LINE).join, 'shorter than the distance'
     assert_equal [], S.validate(valid('length_mode' => 'fixed', 'length_fixed' => 100), LINE), 'exactly taut is allowed'
   end
+
+  def test_saved_value_survives_read_default_evaluation
+    S.save(valid('display' => 'tube', 'material' => 'Wood "Oak" ไม้'))
+    stored = Sketchup.prefs.values.first
+    refute_includes stored, '"', 'stored text must not contain double quotes'
+    loaded = S.load
+    assert_equal 'tube', loaded['display']
+    assert_equal 'Wood "Oak" ไม้', loaded['material']
+  end
+
+  def test_unreadable_stored_value_falls_back_to_defaults
+    Sketchup.write_default(S::PREF_SECTION, S::PREF_KEY, 'not base64 !!')
+    assert_output(/settings could not be read/) { assert_equal S::DEFAULTS, S.load }
+    Sketchup.write_default(S::PREF_SECTION, S::PREF_KEY, 'a"b')
+    assert_output(/settings could not be read/) { assert_equal S::DEFAULTS, S.load }
+  end
 end

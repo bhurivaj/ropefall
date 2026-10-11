@@ -15,35 +15,62 @@ class Anim
         @torsionSpringVectorEnd = (initialPoints[-2] - initialPoints[-1]).normalize
         length = Settings.target_length(settings, initialPoints)
         radius = settings['diameter'].to_f / 2
-        # margin: the springs stretch, so the rope can reach a bit beyond L / 2 from the midpoint
-        roomMin, roomMax = RopeData.fall_room(initialPoints, length, radius + 0.25 * length)
+        # spring stretch is allowed for inside fall_room; the margin only covers the rope's thickness
+        roomMin, roomMax = RopeData.fall_room(initialPoints, length, radius)
         room = Geom::BoundingBox.new
         room.add(Geom::Point3d.new(*roomMin))
         room.add(Geom::Point3d.new(*roomMax))
-        @rope = Rope.new(initialPoints, length, radius, config.noRopePoints, config.massPointMass, config.springConstant, config.springFrictionConstant, config.surfaceFrictionConstant, @torsionSpringVectorBegin, @torsionSpringVectorEnd, SKETCHROPE_ROPEFALL::torsionSpringConstant, room, replace) 
+        @rope = Rope.new(initialPoints, length, radius, config.noRopePoints, config.massPointMass, config.springConstant, config.springFrictionConstant, config.surfaceFrictionConstant, @torsionSpringVectorBegin, @torsionSpringVectorEnd, SKETCHROPE_ROPEFALL::torsionSpringConstant, room, replace)
         @ropeGroup = SKETCHROPE_ROPEFALL::entities.add_group
         @count = config.animIterCount
         @minCount = config.animIterCount - config.minAnimIterCount
         @dt = config.dt
         @dtFactor = 1
-        @stopped = false
         @finished = false
+        @cancelled = false
+        @finishScheduled = false
+        @frames = 0
+        @frameSeconds = 0.0
     end
-    
+
+    # Esc, Enter, or SketchUp stopping the animation itself (e.g. a camera tool): keep the current
+    # shape right away instead of waiting for a next frame — frames can be slow, or never come again
     def stop()
-        @stopped = true
+        return if @finished || @cancelled || @finishScheduled
+        @finishScheduled = true
+        # stop the timer first: a message box inside a non-repeating timer makes it repeat (SketchUp bug)
+        timer = UI.start_timer(0, false) {
+            UI.stop_timer(timer)
+            finishNow()
+        }
     end
-    
+
+    # the tool was switched mid-fall or the fall failed: the operation is aborted, never finish
+    def cancel()
+        @cancelled = true
+    end
+
+    def finishNow()
+        return if @finished || @cancelled
+        view = Sketchup.active_model.active_view
+        view.animation = nil # calls stop() again, which returns early now
+        finish(view, SKETCHROPE_ROPEFALL::ropePoints(@rope))
+    rescue StandardError => e
+        SKETCHROPE_ROPEFALL::failFall(e)
+    end
+
     def nextFrame(view)
+        return false if @finished || @cancelled || @finishScheduled
+        frameStart = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         @rope.solve()
-        
+
         maxVelPctChange = @rope.maxVelPctChange
-        
+
         raise "maxVelPctChange < 0" unless maxVelPctChange >= 0
-            
-        
+
+
 #        @dtFactor = @dtFactor * (1 - (maxVelPctChange - 0.6) * 0.1)
-        
+
         if (maxVelPctChange < 0.3)
             @dtFactor = @dtFactor * 2
         end
@@ -54,29 +81,30 @@ class Anim
 
         @dtFactor = SKETCHROPE_ROPEFALL::max(0.5, @dtFactor)
         @dtFactor = SKETCHROPE_ROPEFALL::min(2, @dtFactor)
-        
-        dt = @dt * @dtFactor         
-        
-        
+
+        dt = @dt * @dtFactor
+
+
         @rope.simulate(dt)
-        
+
         points = SKETCHROPE_ROPEFALL::ropePoints(@rope)
         @ropeGroup.entities.clear!
         # todo use view to draw temporarily
-        edges = @ropeGroup.entities.add_curve points        
+        edges = @ropeGroup.entities.add_curve points
         #view.draw_polyline points
 
         @count = @count - 1
-        
+
         view.show_frame()
+        logFrameTime(frameStart)
 
 #        finished = @count < @minCount && (@count == 0 || !@rope.hasAnyMoved())
-        finished = @stopped || @count == 0 || !@rope.hasAnyMoved()
+        finished = @count == 0 || !@rope.hasAnyMoved()
 
         if (finished)
             finish(view, points)
 	    end
-        
+
         return !finished
     rescue OutOfRoomError
         begin
@@ -88,8 +116,18 @@ class Anim
     rescue StandardError => e
         SKETCHROPE_ROPEFALL::failFall(e)
         return false
-    end    
-   
+    end
+
+    # Ruby Console: average frame time every 50 frames, to see how heavy a model is for the simulation
+    def logFrameTime(frameStart)
+        @frames += 1
+        @frameSeconds += Process.clock_gettime(Process::CLOCK_MONOTONIC) - frameStart
+        return unless (@frames % 50).zero?
+
+        puts "Ropefall: frame #{@frames}, #{(@frameSeconds / 50 * 1000).round} ms per frame"
+        @frameSeconds = 0.0
+    end
+
     def finish(view, points, note = nil)
         @finished = true
         @ropeGroup.erase! if @ropeGroup.valid?

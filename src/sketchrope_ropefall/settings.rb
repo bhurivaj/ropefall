@@ -1,12 +1,16 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'base64'
 require_relative 'rope_data'
 
 module SKETCHROPE_ROPEFALL
   # Rope settings shared by the dialog, the simulation and the data stored on each rope (pure Ruby)
   module Settings
     PREF_SECTION = 'sketchrope_ropefall'
+    # Stored as Base64 JSON: on macOS read_default evaluates stored strings as Ruby, so quotes break it.
+    # (2.1.0 / 2.1.1 used the key 'settings' with plain JSON — never read again.)
+    PREF_KEY = 'settings_b64'
     DEFAULTS = {
       'length_mode' => 'percent',
       'length_percent' => 125.0,
@@ -53,11 +57,17 @@ module SKETCHROPE_ROPEFALL
     end
 
     def load
-      parse(Sketchup.read_default(PREF_SECTION, 'settings', ''))
+      stored = Sketchup.read_default(PREF_SECTION, PREF_KEY, '').to_s
+      return DEFAULTS.dup if stored.empty? # nothing saved yet
+
+      parse(Base64.strict_decode64(stored).force_encoding('UTF-8'))
+    rescue ScriptError, StandardError => e # read_default can raise SyntaxError on a bad stored value
+      puts "Ropefall: settings could not be read, using defaults (#{e.message})"
+      DEFAULTS.dup
     end
 
     def save(settings)
-      Sketchup.write_default(PREF_SECTION, 'settings', JSON.generate(normalize(settings)))
+      Sketchup.write_default(PREF_SECTION, PREF_KEY, Base64.strict_encode64(JSON.generate(normalize(settings))))
     end
 
     def target_length(settings, points)

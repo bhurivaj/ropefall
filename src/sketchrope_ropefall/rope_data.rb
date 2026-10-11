@@ -27,16 +27,28 @@ module SKETCHROPE_ROPEFALL
       points.each_cons(2).inject(0.0) { |sum, (a, b)| sum + distance(a, b) }
     end
 
-    # Box holding every point a rope of rope_length can reach with its ends fixed at the first and
-    # last point: |PA| + |PB| <= L implies |PM| <= L / 2 for the midpoint M. The polyline itself is
-    # included too (a rope shorter than its polyline starts outside that box).
+    STRETCH = 0.1 # the springs let the rope get a little longer than its target length
+
+    # Box holding every point the rope can reach: with its ends A, B fixed, a rope of length L
+    # (stretched by STRETCH) satisfies |PA| + |PB| <= L — an ellipsoid with foci A, B. The box is that
+    # ellipsoid's bounding box joined with the polyline's, capped at the polyline's highest point
+    # (gravity only pulls down), then grown by `margin`. If the rope still leaves it, the fall stops
+    # and keeps its shape (OutOfRoomError).
     def fall_room(points, rope_length, margin)
       pts = points.map { |p| xyz(p) }
       first = pts.first
       last = pts.last
-      half = rope_length / 2.0
-      min = (0..2).map { |i| [pts.map { |p| p[i] }.min, (first[i] + last[i]) / 2.0 - half].min - margin }
-      max = (0..2).map { |i| [pts.map { |p| p[i] }.max, (first[i] + last[i]) / 2.0 + half].max + margin }
+      a = rope_length * (1 + STRETCH) / 2.0
+      half_distance = distance(first, last) / 2.0
+      b = Math.sqrt([a**2 - half_distance**2, 0.0].max)
+      axis = half_distance.zero? ? [0.0, 0.0, 0.0] : (0..2).map { |i| (last[i] - first[i]) / (2 * half_distance) }
+      # half extent of an ellipsoid of revolution along each world axis
+      half = (0..2).map { |i| Math.sqrt(a**2 * axis[i]**2 + b**2 * (1 - axis[i]**2)) }
+      mid = (0..2).map { |i| (first[i] + last[i]) / 2.0 }
+
+      min = (0..2).map { |i| [pts.map { |p| p[i] }.min, mid[i] - half[i]].min - margin }
+      max = (0..2).map { |i| [pts.map { |p| p[i] }.max, mid[i] + half[i]].max + margin }
+      max[2] = pts.map { |p| p[2] }.max + margin
       [min, max]
     end
 

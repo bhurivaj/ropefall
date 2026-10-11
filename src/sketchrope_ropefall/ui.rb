@@ -25,12 +25,20 @@ class RopefallTool
         puts "Ropefall: " + e.message
     end
 
+    # Esc: stop and keep the current shape
     def onCancel(flag, view)
         SKETCHROPE_ROPEFALL::stopFall()
     rescue StandardError => e
         puts "Ropefall: " + e.message
-    end    
-    
+    end
+
+    # Enter: same as Esc
+    def onReturn(view)
+        SKETCHROPE_ROPEFALL::stopFall()
+    rescue StandardError => e
+        puts "Ropefall: " + e.message
+    end
+
     def reset()
         @initialPoints = @settings = @replace = nil
     end
@@ -48,7 +56,7 @@ def self.createFallCommand()
     cmd.status_bar_text = "Simulate a rope falling from the selected polyline"
     cmd.small_icon = iconPath('fall', 16)
     cmd.large_icon = iconPath('fall', 24)
-    
+
     return cmd
 end
 
@@ -67,7 +75,7 @@ def self.createResimulateCommand()
             MF_GRAYED
         end
     }
-    
+
     return cmd
 end
 
@@ -114,8 +122,8 @@ rescue StandardError => e
     UI.messagebox("Ropefall error:\n" + e.message)
 end
 
-def self.intallCommands() 
- if not file_loaded?(__FILE__) 
+def self.intallCommands()
+ if not file_loaded?(__FILE__)
     fall = createFallCommand()
     resimulate = createResimulateCommand()
 
@@ -128,19 +136,19 @@ def self.intallCommands()
     toolbar.add_item(resimulate)
     toolbar.get_last_state == TB_NEVER_SHOWN ? toolbar.show : toolbar.restore
  end
- 
- file_loaded(__FILE__) 
+
+ file_loaded(__FILE__)
 end
 
-def self.startFall(initialPoints, settings, replace)     
+def self.startFall(initialPoints, settings, replace)
     model.start_operation(SKETCHROPE_ROPEFALL::ROPEFALL, false, false, false)
     @@operationOpen = true
-    @@anim = Anim.new(initialPoints, settings, replace) 
+    @@anim = Anim.new(initialPoints, settings, replace)
     model.active_view.animation = @@anim
 end
 
-def self.stopFall()     
-    if (@@anim != nil)     
+def self.stopFall()
+    if (@@anim != nil)
         @@anim.stop()
     end
 end
@@ -150,26 +158,28 @@ end
 def self.endFall(view)
     return if !@@operationOpen
     @@operationOpen = false
-    
+
     if (@@anim != nil && !@@anim.finished)
+        @@anim.cancel
         view.animation = nil
         model.abort_operation
     else
         model.commit_operation
     end
-    
+
     @@anim = nil
 end
 
 # abort_operation also removes everything the fall added to the model
 def self.failFall(error)
     puts error.full_message
-    
+
     if (@@operationOpen)
         @@operationOpen = false
         model.abort_operation
     end
-    
+
+    @@anim.cancel if @@anim
     @@anim = nil
     # leave the tool after the current callback has returned
     UI.start_timer(0, false) { model.select_tool(nil) }
@@ -178,13 +188,13 @@ end
 
 def self.getInitialPointsFromSelection()
     initialPoints = SKETCHROPE_ROPEFALL::sortSelection()
-    
-    if (initialPoints == nil || initialPoints.length < 2) 
+
+    if (initialPoints == nil || initialPoints.length < 2)
         UI.messagebox("Please create an open polyline and then select it!")
-        
+
         return nil
     end
-    
+
     if (!isInitialPointAboveBottom(initialPoints))
         UI.messagebox("Initial polyline must be above the bottom of the model!")
 
@@ -196,12 +206,12 @@ end
 
 def self.isInitialPointAboveBottom(initialPoints, skip = nil)
     bottom = SKETCHROPE_ROPEFALL::modelBottom(skip)
-    initialPoints.each{|p| 
+    initialPoints.each{|p|
         if (p.z <= bottom + EPSILON)
             return false
         end
     }
-    
+
     return true
 end
 
@@ -213,7 +223,7 @@ def self.addOrRemoveEndpoint(endpoints, p)
     end
 end
 
-def self.printEdge(e) 
+def self.printEdge(e)
     puts "start = " + e.start.position.to_s + ", end = " + e.end.position.to_s
 end
 

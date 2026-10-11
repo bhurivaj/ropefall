@@ -7,8 +7,13 @@ module Sketchup
       @prefs ||= {}
     end
 
+    # Like SketchUp on macOS: a stored String is evaluated as a Ruby string literal on read,
+    # so a value containing double quotes raises SyntaxError
     def read_default(section, key, default = nil)
-      prefs.fetch([section, key], default)
+      return default unless prefs.key?([section, key])
+
+      value = prefs[[section, key]]
+      value.is_a?(String) ? eval("\"#{value}\"") : value # rubocop:disable Security/Eval
     end
 
     def write_default(section, key, value)

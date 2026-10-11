@@ -20,12 +20,26 @@ class TestRopeData < Minitest::Test
     assert_in_delta 0.0, R.polyline_length([[1, 1, 1]]), 1e-9
   end
 
-  def test_fall_room_covers_midpoint_box_and_polyline
+  def assert_vector(expected, actual)
+    expected.each_with_index { |v, i| assert_in_delta v, actual[i], 1e-6 }
+  end
+
+  def test_fall_room_uses_the_ellipsoid_and_the_polyline
     points = [[0, 0, 10], [50, 0, 30], [10, 0, 10]]
     min, max = R.fall_room(points, 20.0, 1.0)
-    # midpoint (5,0,10) +/- 10, polyline reaches x=50 and z=30, then +/- margin 1
-    assert_equal [-6.0, -11.0, -1.0], min
-    assert_equal [51.0, 11.0, 31.0], max
+    # ends (0,0,10)-(10,0,10), rope 20 stretched 10% → a = 11 along x, b = sqrt(11² - 5²) across;
+    # the polyline reaches x = 50 and z = 30 (also the ceiling); then +/- margin 1
+    b = Math.sqrt(11**2 - 5**2)
+    assert_vector [-7.0, -b - 1, 10 - b - 1], min
+    assert_vector [51.0, b + 1, 31.0], max
+  end
+
+  def test_fall_room_is_tighter_than_a_sphere_for_a_taut_rope
+    a = [0.0, 0.0, 100.0]
+    b = [100.0, 0.0, 100.0]
+    min, max = R.fall_room([a, b], 125.0, 0.0)
+    assert_operator max[1] - min[1], :<, 125.0 * 0.85, 'sideways extent well below the rope length'
+    assert_in_delta 100.0, max[2], 1e-9, 'no room above the highest polyline point'
   end
 
   def test_every_reachable_point_is_inside_the_room
@@ -34,11 +48,13 @@ class TestRopeData < Minitest::Test
     length = R.distance(a, b) * 10 # 1000 %
     min, max = R.fall_room([a, b], length, 0.0)
     mid = [0, 1, 2].map { |i| (a[i] + b[i]) / 2 }
+    top = [a[2], b[2]].max
     rng = Random.new(42)
     checked = 0
     20_000.times do
       p = [0, 1, 2].map { |i| mid[i] + (rng.rand * 2 - 1) * length }
-      next if R.distance(p, a) + R.distance(p, b) > length
+      # reachable: within the rope length of both ends (ellipsoid), and not above the start (gravity)
+      next if R.distance(p, a) + R.distance(p, b) > length || p[2] > top
 
       checked += 1
       [0, 1, 2].each do |i|
@@ -47,6 +63,12 @@ class TestRopeData < Minitest::Test
       end
     end
     assert_operator checked, :>, 100, 'sampling must actually hit reachable points'
+  end
+
+  def test_fall_room_with_coincident_ends
+    min, max = R.fall_room([[0, 0, 50], [5, 0, 60], [0, 0, 50]], 20.0, 0.0)
+    assert_vector [-11.0, -11.0, 39.0], min
+    assert_vector [11.0, 11.0, 60.0], max
   end
 
   def test_grid_box_does_not_reach_down_to_a_far_bottom
