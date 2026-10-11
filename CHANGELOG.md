@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Catenary method: the settings window has Method — Drape over objects (simulation) / Catenary (instant hanging curve between the first and last point of the selection, ignores objects)
+
+### Changed
+- Ropes no longer stretch under their own weight: a length constraint keeps the rope at its set length (typically within 1–2%, up to ~4% for short ropes pulled taut), while still colliding with objects
+- The "above the bottom of the model" check runs only for Drape, after Start
+
 ## [2.1.2] - 2026-10-11
 
 ### Fixed

@@ -35,6 +35,12 @@ block the rope from falling
 - use some helper objects to control the shape of the rope
 - ropes created before 2.1 cannot be re-simulated (they have no stored data)
 
+## Methods
+
+**Drape** — simulation, the rope drapes over and around objects, its length stays as set.
+
+**Catenary** — instant hanging curve between the first and last point of the selection, ignores objects. TIP: select a straight line and set e.g. 105% for a cable with 5% slack.
+
 Supported SketchUp versions: 2024+
 
 ## Build
