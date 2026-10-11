@@ -3,9 +3,13 @@ Sketchup::require "sketchrope_ropefall/constants"
 
 module SKETCHROPE_ROPEFALL
 
+# Raised when a rope point leaves the indexed fall room; the animation stops and keeps the rope
+class OutOfRoomError < StandardError; end
+
 class Grid
-    def initialize(cubeSize, initialPathBoundingBox)
-        @fallRoomBounds = extendBoundingBoxToBottom(cubeSize, initialPathBoundingBox)
+    def initialize(cubeSize, roomBounds, skip = nil)
+        @skip = skip
+        @fallRoomBounds = extendBoundingBoxToBottom(cubeSize, roomBounds)
         @cubeSize = cubeSize * 1.5
         
         @binsOneDimX = (@fallRoomBounds.width / @cubeSize).floor + 1
@@ -19,12 +23,12 @@ class Grid
         #drawGrid()
     end
     
-    def extendBoundingBoxToBottom(cubeSize, initialPathBoundingBox)
+    def extendBoundingBoxToBottom(cubeSize, roomBounds)
         res = Geom::BoundingBox.new
-        modelBounds = SKETCHROPE_ROPEFALL::model.bounds   
+        bottom = SKETCHROPE_ROPEFALL::modelBottom(@skip)
                     
-        res.add(Geom::Point3d.new(initialPathBoundingBox.min.x - cubeSize, initialPathBoundingBox.min.y - cubeSize, modelBounds.min.z - cubeSize))
-        res.add(Geom::Point3d.new(initialPathBoundingBox.max.x + cubeSize, initialPathBoundingBox.max.y + cubeSize, initialPathBoundingBox.max.z+ cubeSize))
+        res.add(Geom::Point3d.new(roomBounds.min.x - cubeSize, roomBounds.min.y - cubeSize, bottom - cubeSize))
+        res.add(Geom::Point3d.new(roomBounds.max.x + cubeSize, roomBounds.max.y + cubeSize, roomBounds.max.z + cubeSize))
         
         return res
     end
@@ -36,7 +40,7 @@ class Grid
     end
     
     def fillIndex()
-        @faces = SKETCHROPE_ROPEFALL::getAllFaces(@fallRoomBounds)
+        @faces = SKETCHROPE_ROPEFALL::getAllFaces(@fallRoomBounds, @skip)
         
         @faces.each{|f|
             faceBounds = f.bounds
@@ -135,8 +139,7 @@ class Grid
         k = a_index[2]
         
         if (!isWithinBounds(i, j, k))
-            raise "WARN: indexed fallroom too small for " + i.to_s + ", " + j.to_s + ", " + k.to_s
-            return []
+            raise OutOfRoomError, "rope left the simulation area"
         end        
         
         if (@facesIndex == nil || @facesIndex[i] == nil || @facesIndex[i][j] == nil || @facesIndex[i][j][k] == nil)

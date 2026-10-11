@@ -34,9 +34,9 @@ end
 #	return faces
 # end
 
-def self.walk_faces(entities, group, bounds, t)
+def self.walk_faces(entities, group, bounds, t, skip = nil)
 	entities.each { |e|
-        next if e.is_a?(Sketchup::Edge) or e.is_a?(Sketchup::Image) or e.hidden? or e == group
+        next if e.is_a?(Sketchup::Edge) or e.is_a?(Sketchup::Image) or e.hidden? or e == group or e == skip
 
         if e.is_a?(Sketchup::Face)
             if (SKETCHROPE_ROPEFALL::boundsIntersect?(SKETCHROPE_ROPEFALL::tranformBounds(e.bounds, t), bounds))
@@ -68,12 +68,12 @@ def self.walk_faces(entities, group, bounds, t)
             #puts "group found " + e.to_s + ", " + e.entities.length.to_s + " t = " + e.transformation.to_a.to_s
             newgroup = group.entities.add_group
             newgroup.transformation = e.transformation
-            walk_faces(e.entities, newgroup, bounds, t * e.transformation)
+            walk_faces(e.entities, newgroup, bounds, t * e.transformation, skip)
         elsif (e.is_a?(Sketchup::ComponentInstance))
             #puts "instance found " + e.definition.entities.length.to_s
             newgroup = group.entities.add_group
             newgroup.transformation = e.transformation
-            walk_faces(e.definition.entities, newgroup, bounds, t * e.transformation)
+            walk_faces(e.definition.entities, newgroup, bounds, t * e.transformation, skip)
         end
     }
 end
@@ -117,19 +117,28 @@ def self.flattenGroup(group)
     return faces
 end
 
-def self.getAllFaces(bounds)
+# Lowest z of the model; `skip` (a rope about to be replaced) does not count
+def self.modelBottom(skip = nil)
+    return SKETCHROPE_ROPEFALL::model.bounds.min.z if skip.nil?
+
+    bounds = Geom::BoundingBox.new
+    entities().each { |e| bounds.add(e.bounds) if e != skip && e.respond_to?(:bounds) }
+    return bounds.empty? ? 0 : bounds.min.z
+end
+
+def self.getAllFaces(bounds, skip = nil)
     layer = Sketchup.active_model.layers.add DUPLAYERNAME
     allFacesGroup = entities().add_group
     allFacesGroup.layer = layer 
     allFacesGroup.hidden = true 
     allFacesGroup.name = COLLISIONGROUPNAME
     
-    modelBounds = SKETCHROPE_ROPEFALL::model.bounds 
+    bottom = SKETCHROPE_ROPEFALL::modelBottom(skip)
     bottomGroup = allFacesGroup.entities.add_group  
-    bottomGroup.entities.add_face [bounds.min.x, bounds.min.y,  modelBounds.min.z], [bounds.min.x, bounds.max.y,  modelBounds.min.z], [bounds.max.x, bounds.max.y,  modelBounds.min.z], [bounds.max.x, bounds.min.y,  modelBounds.min.z]
+    bottomGroup.entities.add_face [bounds.min.x, bounds.min.y, bottom], [bounds.min.x, bounds.max.y, bottom], [bounds.max.x, bounds.max.y, bottom], [bounds.max.x, bounds.min.y, bottom]
     
     @@facecount = 0
-    walk_faces(entities(), allFacesGroup, bounds, Geom::Transformation.new) 
+    walk_faces(entities(), allFacesGroup, bounds, Geom::Transformation.new, skip) 
     untrans(allFacesGroup)
     faces = flattenGroup(allFacesGroup)
 

@@ -6,10 +6,20 @@ module SKETCHROPE_ROPEFALL
 class Anim
     attr_reader :finished
 
-    def initialize(initialPoints, config)
+    def initialize(initialPoints, settings, replace = nil)
+        @initialPoints = initialPoints
+        @settings = settings
+        @replace = replace
+        config = SKETCHROPE_ROPEFALL::config
         @torsionSpringVectorBegin = (initialPoints[0] - initialPoints[1]).normalize
         @torsionSpringVectorEnd = (initialPoints[-2] - initialPoints[-1]).normalize
-        @rope = Rope.new(initialPoints, polylineLength(initialPoints) * config.lengthPercent, config.radius, config.noRopePoints, config.massPointMass, config.springConstant, config.springFrictionConstant, config.surfaceFrictionConstant, @torsionSpringVectorBegin, @torsionSpringVectorEnd, SKETCHROPE_ROPEFALL::torsionSpringConstant) 
+        length = Settings.target_length(settings, initialPoints)
+        radius = settings['diameter'].to_f / 2
+        roomMin, roomMax = RopeData.fall_room(initialPoints, length, radius)
+        room = Geom::BoundingBox.new
+        room.add(Geom::Point3d.new(*roomMin))
+        room.add(Geom::Point3d.new(*roomMax))
+        @rope = Rope.new(initialPoints, length, radius, config.noRopePoints, config.massPointMass, config.springConstant, config.springFrictionConstant, config.surfaceFrictionConstant, @torsionSpringVectorBegin, @torsionSpringVectorEnd, SKETCHROPE_ROPEFALL::torsionSpringConstant, room, replace) 
         @ropeGroup = SKETCHROPE_ROPEFALL::entities.add_group
         @count = config.animIterCount
         @minCount = config.animIterCount - config.minAnimIterCount
@@ -17,20 +27,6 @@ class Anim
         @dtFactor = 1
         @stopped = false
         @finished = false
-    end
-    
-    def polylineLength(initialPoints)
-        last = nil
-        len = 0
-        initialPoints.each{|p| 
-            if (last != nil) 
-               len = len + last.distance(p) 
-            end
-            
-            last = p
-        }
-        
-        return len
     end
     
     def stop()
@@ -81,12 +77,15 @@ class Anim
 	    end
         
         return !finished
+    rescue OutOfRoomError
+        finish(view, SKETCHROPE_ROPEFALL::ropePoints(@rope), "stopped: rope left the simulation area")
+        return false
     rescue StandardError => e
         SKETCHROPE_ROPEFALL::failFall(e)
         return false
     end    
    
-    def finish(view, points)
+    def finish(view, points, note = nil)
         @finished = true
         @ropeGroup.entities.clear!
         @ropeGroup.erase!
@@ -95,8 +94,8 @@ class Anim
         points_chunk = points[0..99]
         edges = @ropeGroup.entities.add_curve points_chunk  
         
-        if (SKETCHROPE_ROPEFALL::config().whatToDraw == SKETCHROPE_ROPEFALL::WhatToDraw::TUBE)
-            cirlce = @ropeGroup.entities.add_circle points_chunk[0], points_chunk[0] - points_chunk[1], SKETCHROPE_ROPEFALL::config.radius
+        if (@settings['display'] == 'tube')
+            cirlce = @ropeGroup.entities.add_circle points_chunk[0], points_chunk[0] - points_chunk[1], @settings['diameter'].to_f / 2
         	face = @ropeGroup.entities.add_face cirlce
             face.followme(edges)
         end

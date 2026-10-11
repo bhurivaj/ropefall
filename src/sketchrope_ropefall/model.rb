@@ -362,12 +362,12 @@ class Rope
     attr_reader :hasAnyMoved
     
     
-    def initialize(initialPath, length, radius, noRopePoints, massPointMass, springConstant, springFrictionConstant, surfaceFrictionConstant, torsionSpringVectorBegin, torsionSpringVectorEnd, torsionSpringConstant)  
+    def initialize(initialPath, length, radius, noRopePoints, massPointMass, springConstant, springFrictionConstant, surfaceFrictionConstant, torsionSpringVectorBegin, torsionSpringVectorEnd, torsionSpringConstant, roomBounds, skip = nil)  
         @radius = radius
         @noRopePoints = noRopePoints
         @massPointMass = massPointMass
         springLength = length / (@noRopePoints - 1)
-        @grid = Grid.new(springLength, initialPathBoundingBox(initialPath))
+        @grid = Grid.new(springLength, roomBounds, skip)
         initialPathLength = pathLength(initialPath)
         stepLength = initialPathLength / (@noRopePoints - 1)
         
@@ -434,14 +434,6 @@ class Rope
          
          @maxVelPctChange = 0    
     end    
-    
-    def initialPathBoundingBox(initialPath)
-        res = Geom::BoundingBox.new
-        
-        initialPath.each{|p| res.add(p)}
-        
-        return res
-    end
     
     def pathLength(path)
         raise "path consists of at least two points" unless path.length >=2

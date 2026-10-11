@@ -6,15 +6,7 @@ def self.config()
     return @@config
 end
 
-module WhatToDraw
-    MIDLINE = "midline"
-    TUBE = "tube"
-end
-
 class Config
-    attr_accessor :radius
-    attr_accessor :whatToDraw
-    attr_accessor :lengthPercent
     attr_accessor :minMoveDelta
     attr_accessor :noRopePoints
     attr_accessor :massPointMass
@@ -28,9 +20,6 @@ class Config
     attr_accessor :dt
 
     def initialize()
-        @radius = 0.125
-        @whatToDraw = WhatToDraw::MIDLINE
-        @lengthPercent = 1.25
         @animIterCount = 800
         @minAnimIterCount = 100
         @minMoveDelta = SKETCHROPE_ROPEFALL::minMoveDelta
