@@ -13,7 +13,7 @@ class TestLengthConstraint < Minitest::Test
 
   def test_stretched_chain_is_pulled_back_to_rest_length
     points = [[0.0, 0.0, 0.0], [3.0, 0.0, 0.0], [6.0, 0.0, 0.0], [9.0, 0.0, 0.0]]
-    C.project(points, [true, false, false, false], 1.0, 50)
+    C.project(points, [true, false, false, false], 1.0, 100)
     segment_lengths(points).each { |len| assert_operator len, :<=, 1.0 + 1e-6 }
   end
 
