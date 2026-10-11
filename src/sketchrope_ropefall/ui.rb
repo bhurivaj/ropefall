@@ -120,6 +120,7 @@ end
 # Catenary: no simulation, the curve is built at once in one undo step
 def self.createCatenary(points, settings, replace = nil)
     model = Sketchup.active_model
+    model.select_tool(nil) if @@operationOpen # a running fall is kept and committed first (deactivate -> endFall)
     length = Settings.target_length(settings, points)
     curve = Catenary.points(RopeData.xyz(points.first), RopeData.xyz(points.last), length, SKETCHROPE_ROPEFALL::config.noRopePoints).map{|p| Geom::Point3d.new(*p)}
     model.start_operation(SKETCHROPE_ROPEFALL::ROPEFALL, true)
