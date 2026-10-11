@@ -195,8 +195,17 @@ def constrainTo(target)
     return @pos if @frozen
 
     data = SKETCHROPE_ROPEFALL::collosionData(@pos, target, @radius, @grid.getFaces(@pos, target))
-    @pos = data[1] != nil ? data[2] : target
+    candidate = data[1] != nil ? data[2] : target
+    # like simulate: a segment to a neighbour must not cut through a face (rope over a thin edge)
+    return @pos if segmentBlocked?(candidate)
+
+    @pos = candidate
+    @supportPoint = (data[1] != nil && (@pos.distance(data[1]) - @radius).abs < SKETCHROPE_ROPEFALL::EPSILON) ? data[1] : nil
     return @pos
+end
+
+def segmentBlocked?(pos)
+    [@left, @right].any?{|n| n != nil && SKETCHROPE_ROPEFALL::isCylinderCollided(pos, n.pos, @radius, @grid.getFaces(pos, n.pos))}
 end
 
 # after a constrained move the velocity is the step actually taken (otherwise it keeps building up)
