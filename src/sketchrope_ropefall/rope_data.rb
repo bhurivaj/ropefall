@@ -40,6 +40,17 @@ module SKETCHROPE_ROPEFALL
       [min, max]
     end
 
+    # [min, max, cube_size] of the collision grid around the room. Z starts at the model bottom only
+    # when that is inside the room (the floor face lives there); otherwise at the room's own bottom.
+    # Buckets are at least 1/100 of the largest room side so the bin count stays bounded.
+    def grid_box(room_min, room_max, bottom, cube)
+      largest_side = (0..2).map { |i| room_max[i] - room_min[i] }.max
+      size = [cube * 1.5, largest_side / 100.0].max
+      min = [room_min[0] - size, room_min[1] - size, [bottom, room_min[2]].max - size]
+      max = (0..2).map { |i| room_max[i] + size }
+      [min, max, size]
+    end
+
     def write(group, points, settings, length)
       group.set_attribute(DICT, 'version', DATA_VERSION)
       group.set_attribute(DICT, 'initial_points', JSON.generate(points.map { |p| xyz(p) }))

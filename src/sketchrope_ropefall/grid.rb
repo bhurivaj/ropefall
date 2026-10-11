@@ -9,8 +9,9 @@ class OutOfRoomError < StandardError; end
 class Grid
     def initialize(cubeSize, roomBounds, skip = nil)
         @skip = skip
-        @fallRoomBounds = extendBoundingBoxToBottom(cubeSize, roomBounds)
-        @cubeSize = cubeSize * 1.5
+        # before fillIndex: getAllFaces adds the collision group to the model
+        @bottom = SKETCHROPE_ROPEFALL::modelBottom(@skip)
+        @fallRoomBounds, @cubeSize = extendBoundingBoxToBottom(cubeSize, roomBounds)
         
         @binsOneDimX = (@fallRoomBounds.width / @cubeSize).floor + 1
         @binsOneDimY = (@fallRoomBounds.height / @cubeSize).floor + 1
@@ -23,14 +24,14 @@ class Grid
         #drawGrid()
     end
     
+    # [bounds, bucket size]: the room padded by one bucket, down to the model bottom only if it is inside the room
     def extendBoundingBoxToBottom(cubeSize, roomBounds)
+        min, max, size = RopeData.grid_box(RopeData.xyz(roomBounds.min), RopeData.xyz(roomBounds.max), @bottom, cubeSize)
         res = Geom::BoundingBox.new
-        bottom = SKETCHROPE_ROPEFALL::modelBottom(@skip)
-                    
-        res.add(Geom::Point3d.new(roomBounds.min.x - cubeSize, roomBounds.min.y - cubeSize, bottom - cubeSize))
-        res.add(Geom::Point3d.new(roomBounds.max.x + cubeSize, roomBounds.max.y + cubeSize, roomBounds.max.z + cubeSize))
+        res.add(Geom::Point3d.new(*min))
+        res.add(Geom::Point3d.new(*max))
         
-        return res
+        return [res, size]
     end
     
     def drawGrid()
@@ -40,7 +41,7 @@ class Grid
     end
     
     def fillIndex()
-        @faces = SKETCHROPE_ROPEFALL::getAllFaces(@fallRoomBounds, @skip)
+        @faces = SKETCHROPE_ROPEFALL::getAllFaces(@fallRoomBounds, @skip, @bottom)
         
         @faces.each{|f|
             faceBounds = f.bounds

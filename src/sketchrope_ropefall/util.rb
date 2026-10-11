@@ -117,23 +117,26 @@ def self.flattenGroup(group)
     return faces
 end
 
-# Lowest z of the model; `skip` (a rope about to be replaced) does not count
+# Lowest z of the visible top-level geometry; `skip` (a rope about to be replaced) does not count; 0 for an empty model
 def self.modelBottom(skip = nil)
-    return SKETCHROPE_ROPEFALL::model.bounds.min.z if skip.nil?
-
     bounds = Geom::BoundingBox.new
-    entities().each { |e| bounds.add(e.bounds) if e != skip && e.respond_to?(:bounds) }
+    entities().each { |e|
+        next if e == skip
+        next unless e.is_a?(Sketchup::Face) || e.is_a?(Sketchup::Edge) || e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+        next unless e.visible? && e.layer.visible?
+        bounds.add(e.bounds)
+    }
     return bounds.empty? ? 0 : bounds.min.z
 end
 
-def self.getAllFaces(bounds, skip = nil)
+# `bottom` must be computed before this is called: it adds the (hidden) collision group to the model
+def self.getAllFaces(bounds, skip, bottom)
     layer = Sketchup.active_model.layers.add DUPLAYERNAME
     allFacesGroup = entities().add_group
     allFacesGroup.layer = layer 
     allFacesGroup.hidden = true 
     allFacesGroup.name = COLLISIONGROUPNAME
     
-    bottom = SKETCHROPE_ROPEFALL::modelBottom(skip)
     bottomGroup = allFacesGroup.entities.add_group  
     bottomGroup.entities.add_face [bounds.min.x, bounds.min.y, bottom], [bounds.min.x, bounds.max.y, bottom], [bounds.max.x, bounds.max.y, bottom], [bounds.max.x, bounds.min.y, bottom]
     

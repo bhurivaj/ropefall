@@ -13,6 +13,18 @@
 - Menu moved from Draw → Ropefall to Extensions → Ropefall
 - The simulation area is sized from the rope length, so long ropes no longer stop with "indexed fallroom too small"; if a rope still leaves it, the fall stops and keeps the current shape instead of failing
 
+### Fixed
+- A short rope high above the model, or a long rope from a folded polyline, no longer allocates a huge collision grid (the grid stays around the rope's reachable area and its cell count is capped)
+- The simulation area now allows for the rope's springs stretching, so ropes stop less often with "rope left the simulation area"
+- Re-simulating a rope that was moved or copied now starts from where the rope is, not from its original position
+- An error while keeping the rope after it left the simulation area no longer leaves the undo operation open
+- The model bottom (the floor the rope lands on) now counts only visible top-level geometry, is the same for Fall and Re-simulate, and is measured before Ropefall adds its own helper geometry
+- The selected material is applied only to tubes (lines are not coloured any more)
+- A warning is printed in the Ruby Console when the saved settings cannot be read
+- A fixed rope length is limited to 10 times the polyline length (same as the 1000% limit)
+- The rope length in the group name and status bar no longer starts with "~"
+- The new rope is selected after a fall, so Re-simulate can be run again right away
+
 ## [2.0.1] - 2026-10-11
 
 ### Fixed

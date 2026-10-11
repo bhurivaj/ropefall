@@ -15,7 +15,8 @@ class Anim
         @torsionSpringVectorEnd = (initialPoints[-2] - initialPoints[-1]).normalize
         length = Settings.target_length(settings, initialPoints)
         radius = settings['diameter'].to_f / 2
-        roomMin, roomMax = RopeData.fall_room(initialPoints, length, radius)
+        # margin: the springs stretch, so the rope can reach a bit beyond L / 2 from the midpoint
+        roomMin, roomMax = RopeData.fall_room(initialPoints, length, radius + 0.25 * length)
         room = Geom::BoundingBox.new
         room.add(Geom::Point3d.new(*roomMin))
         room.add(Geom::Point3d.new(*roomMax))
@@ -78,7 +79,11 @@ class Anim
         
         return !finished
     rescue OutOfRoomError
-        finish(view, SKETCHROPE_ROPEFALL::ropePoints(@rope), "stopped: rope left the simulation area")
+        begin
+            finish(view, SKETCHROPE_ROPEFALL::ropePoints(@rope), "stopped: rope left the simulation area")
+        rescue StandardError => e
+            SKETCHROPE_ROPEFALL::failFall(e)
+        end
         return false
     rescue StandardError => e
         SKETCHROPE_ROPEFALL::failFall(e)
@@ -91,7 +96,7 @@ class Anim
 
         @ropeGroup, buildNote = buildRope(points)
         length = RopeData.polyline_length(points)
-        @ropeGroup.name = "Rope #{Sketchup.format_length(length)}"
+        @ropeGroup.name = "Rope #{formatLength(length)}"
         RopeData.write(@ropeGroup, @initialPoints, @settings, length)
         @replace.erase! if @replace && @replace.valid?
 
@@ -99,10 +104,13 @@ class Anim
         collisionGroups = SKETCHROPE_ROPEFALL::entities.grep(Sketchup::Group).select{|g| g.name == COLLISIONGROUPNAME}
         SKETCHROPE_ROPEFALL::entities.erase_entities(collisionGroups) unless collisionGroups.empty?
         Sketchup.active_model.layers.remove(DUPLAYERNAME)
+        # select the new rope so Re-simulate can run again right away
+        Sketchup.active_model.selection.clear
+        Sketchup.active_model.selection.add(@ropeGroup)
         Sketchup.active_model.select_tool nil
 
         notes = [note, buildNote].compact
-        status = "Ropefall done — length #{Sketchup.format_length(length)}"
+        status = "Ropefall done — length #{formatLength(length)}"
         status += " (#{notes.join('; ')})" unless notes.empty?
         Sketchup.status_text = status
     end
@@ -127,10 +135,17 @@ class Anim
             end
         end
 
-        material = @settings['material'].to_s
-        group.material = SKETCHROPE_ROPEFALL::model.materials[material] unless material.empty? || SKETCHROPE_ROPEFALL::model.materials[material].nil?
+        if (@settings['display'] == 'tube')
+            material = @settings['material'].to_s
+            group.material = SKETCHROPE_ROPEFALL::model.materials[material] unless material.empty? || SKETCHROPE_ROPEFALL::model.materials[material].nil?
+        end
 
         return [group, note]
+    end
+
+    # model units without the "~ " SketchUp adds to rounded values
+    def formatLength(length)
+        Sketchup.format_length(length).sub(/\A~\s*/, '')
     end
 
     def smoothEdges(group)

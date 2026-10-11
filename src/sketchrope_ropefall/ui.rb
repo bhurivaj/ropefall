@@ -99,7 +99,8 @@ def self.activateResimulate()
         return
     end
 
-    points = data['points'].map{|p| Geom::Point3d.new(*p)}
+    # stored in the coordinates the rope had when created (top level, identity); follow moves / copies
+    points = data['points'].map{|p| Geom::Point3d.new(*p).transform(group.transformation)}
     if (!isInitialPointAboveBottom(points, group))
         UI.messagebox("Initial polyline must be above the bottom of the model!")
         return

@@ -44,8 +44,11 @@ module SKETCHROPE_ROPEFALL
     end
 
     def parse(json_text)
+      return DEFAULTS.dup if json_text.to_s.strip.empty? # nothing saved yet
+
       normalize(JSON.parse(json_text.to_s))
     rescue JSON::ParserError
+      puts 'Ropefall: settings could not be read, using defaults'
       DEFAULTS.dup
     end
 
@@ -73,6 +76,9 @@ module SKETCHROPE_ROPEFALL
       end
       if settings['length_mode'] == 'fixed' && settings['length_fixed'] <= 0
         errors << 'Fixed length must be greater than 0'
+      elsif settings['length_mode'] == 'fixed' &&
+            settings['length_fixed'] > RopeData.polyline_length(points) * MAX_PERCENT / 100.0 + 1e-6
+        errors << 'Fixed length must be at most 10 times the polyline length'
       end
       errors << 'Diameter must be greater than 0' unless settings['diameter'] > 0
       if settings['display'] == 'tube' && !settings['sides'].between?(MIN_SIDES, MAX_SIDES)

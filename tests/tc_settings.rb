@@ -41,9 +41,10 @@ class TestSettings < Minitest::Test
   end
 
   def test_parse_handles_broken_json
-    assert_equal S::DEFAULTS, S.parse('not json')
-    assert_equal S::DEFAULTS, S.parse('[1,2]')
-    assert_equal S::DEFAULTS, S.parse(nil)
+    assert_output(/settings could not be read/) { assert_equal S::DEFAULTS, S.parse('not json') }
+    assert_silent { assert_equal S::DEFAULTS, S.parse('[1,2]') }
+    assert_silent { assert_equal S::DEFAULTS, S.parse(nil) }
+    assert_silent { assert_equal S::DEFAULTS, S.parse('') }
     assert_equal 'tube', S.parse('{"display":"tube"}')['display']
   end
 
@@ -52,7 +53,7 @@ class TestSettings < Minitest::Test
     loaded = S.load
     assert_equal 'tube', loaded['display']
     assert_equal 8, loaded['sides']
-    assert_equal S::DEFAULTS, (Sketchup.prefs.clear && S.load), 'nothing saved → defaults'
+    assert_silent { assert_equal S::DEFAULTS, (Sketchup.prefs.clear && S.load), 'nothing saved → defaults' }
   end
 
   def test_target_length
@@ -74,6 +75,12 @@ class TestSettings < Minitest::Test
     assert_includes S.validate(valid('diameter' => 0), LINE).join, 'Diameter'
     assert_includes S.validate(valid('display' => 'tube', 'sides' => 2), LINE).join, 'Sides'
     assert_includes S.validate(valid('display' => 'tube', 'sides' => 49), LINE).join, 'Sides'
+  end
+
+  def test_fixed_length_is_capped_at_ten_times_the_polyline
+    assert_equal [], S.validate(valid('length_mode' => 'fixed', 'length_fixed' => 1000), LINE), 'exactly 10x is allowed'
+    assert_includes S.validate(valid('length_mode' => 'fixed', 'length_fixed' => 1001), LINE).join,
+                    'Fixed length must be at most 10 times the polyline length'
   end
 
   def test_sides_only_checked_for_tube

@@ -49,6 +49,37 @@ class TestRopeData < Minitest::Test
     assert_operator checked, :>, 100, 'sampling must actually hit reachable points'
   end
 
+  def test_grid_box_does_not_reach_down_to_a_far_bottom
+    # 1 m rope (39.37 in) hanging 25 m (984.25 in) above the model bottom at z = 0
+    length = 39.37
+    cube = 1.5 * length / 99
+    room_min, room_max = R.fall_room([[0, 0, 984.25], [10, 0, 984.25]], length, 0.1)
+    min, max, size = R.grid_box(room_min, room_max, 0.0, cube)
+    room_span = room_max[2] - room_min[2]
+    assert_operator max[2] - min[2], :<=, room_span + 2 * size + 1e-9
+    assert_in_delta room_min[2] - size, min[2], 1e-9
+    assert_in_delta room_max[2] + size, max[2], 1e-9
+  end
+
+  def test_grid_box_keeps_a_bottom_inside_the_room
+    min, _max, size = R.grid_box([0, 0, -10], [20, 20, 30], 5.0, 0.1)
+    assert_in_delta 5.0 - size, min[2], 1e-9, 'floor at the model bottom stays inside the grid'
+  end
+
+  def test_grid_box_floors_the_cube_size
+    # long folded polyline: tiny springs, big room
+    room_min = [0.0, 0.0, 0.0]
+    room_max = [5000.0, 3000.0, 4000.0]
+    min, max, size = R.grid_box(room_min, room_max, -100.0, 0.01)
+    assert_in_delta 50.0, size, 1e-9, 'largest side / 100'
+    (0..2).each do |i|
+      bins = ((max[i] - min[i]) / size).floor + 1
+      assert_operator bins, :<=, 103
+    end
+    _min, _max, small_room_size = R.grid_box([0, 0, 0], [10, 10, 10], 0.0, 2.0)
+    assert_in_delta 3.0, small_room_size, 1e-9, 'cube * 1.5 when it is the larger'
+  end
+
   def test_write_then_read_round_trip
     group = FakeGroup.new
     settings = { 'display' => 'tube', 'sides' => 8 }
