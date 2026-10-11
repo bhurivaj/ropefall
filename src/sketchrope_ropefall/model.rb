@@ -190,6 +190,22 @@ def freeze()
     @vel = Geom::Vector3d.new
 end
 
+# Length constraint: move toward `target`, stopping at a face like simulate does; returns the position reached
+def constrainTo(target)
+    return @pos if @frozen
+
+    data = SKETCHROPE_ROPEFALL::collosionData(@pos, target, @radius, @grid.getFaces(@pos, target))
+    @pos = data[1] != nil ? data[2] : target
+    return @pos
+end
+
+# after a constrained move the velocity is the step actually taken (otherwise it keeps building up)
+def followConstraint(dt)
+    v = @pos - @prevPos
+    v.length = v.length / dt if v.length > 0
+    @vel = v
+end
+
 def hasMoved()
     m = (@pos - @prevPos).length
     return m > SKETCHROPE_ROPEFALL::minMoveDelta
@@ -367,6 +383,7 @@ class Rope
         @noRopePoints = noRopePoints
         @massPointMass = massPointMass
         springLength = length / (@noRopePoints - 1)
+        @segmentLength = springLength
         @grid = Grid.new(springLength, roomBounds, skip)
         initialPathLength = pathLength(initialPath)
         stepLength = initialPathLength / (@noRopePoints - 1)
@@ -456,27 +473,41 @@ class Rope
     end
     
     def simulate(dt)
+        @massPoints.each{|mp| mp.simulate(dt)}
+        enforceLength(dt)
+
         @maxVelPctChange = 0
         @hasAnyMoved = false
-        
-        @massPoints.each{|mp| 
-            mp.simulate(dt)
 
+        @massPoints.each{|mp|
             prevVel = mp.prevVel
             velDiff = mp.velDiff
-            
+
             velPctChange = 0
-            
+
             if (mp.hasMoved() && prevVel.length > 0.5)
                 velPctChange = velDiff.length / prevVel.length
             end
-            
+
             @maxVelPctChange = SKETCHROPE_ROPEFALL::max(velPctChange, @maxVelPctChange)
-            
+
             if (mp.hasMoved())
-                @hasAnyMoved = true    
+                @hasAnyMoved = true
             end
-        }                
+        }
+    end
+
+    CONSTRAINT_PASSES = 16
+
+    # no stretching: segments longer than the rope's segment length are pulled back (moves are
+    # collision-checked like normal steps)
+    def enforceLength(dt)
+        points = @massPoints.map{|mp| RopeData.xyz(mp.pos)}
+        frozen = @massPoints.map{|mp| mp.frozen}
+        moved = LengthConstraint.project(points, frozen, @segmentLength, CONSTRAINT_PASSES) { |i, from, to|
+            RopeData.xyz(@massPoints[i].constrainTo(Geom::Point3d.new(*to)))
+        }
+        moved.each{|i| @massPoints[i].followConstraint(dt)}
     end
 end
 
