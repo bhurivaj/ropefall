@@ -3,6 +3,9 @@ Sketchup::require 'sketchrope_ropefall/config'
 
 module SKETCHROPE_ROPEFALL
 
+@@anim = nil
+@@operationOpen = false
+
 class RopefallTool
     def initialize(initialPoints, config)
         @initialPoints = initialPoints
@@ -10,16 +13,21 @@ class RopefallTool
     end
 
     def activate
-        SKETCHROPE_ROPEFALL::model().start_operation(SKETCHROPE_ROPEFALL::ROPEFALL, false, false, false)
         SKETCHROPE_ROPEFALL::startFall(@initialPoints, @config)
+    rescue StandardError => e
+        SKETCHROPE_ROPEFALL::failFall(e)
     end
 
     def deactivate(view)
-        SKETCHROPE_ROPEFALL::model().commit_operation()
+        SKETCHROPE_ROPEFALL::endFall(view)
+    rescue StandardError => e
+        puts "Ropefall: " + e.message
     end
 
     def onCancel(flag, view)
         SKETCHROPE_ROPEFALL::stopFall()
+    rescue StandardError => e
+        puts "Ropefall: " + e.message
     end    
     
     def reset()
@@ -29,47 +37,12 @@ class RopefallTool
 end
 
 def self.createFallCommand()
-    @@falling = false
     cmd = UI::Command.new("fall") {
-        fallCommand()
+        activateFall()
         }
     cmd.menu_text = SKETCHROPE_ROPEFALL::FALL
-    cmd.set_validation_proc {
-    }
     
     return cmd
-end
-
-def self.createLicInfoCommand()
-    cmd = UI::Command.new("licinfo") {
-        licInfoDialog(Date.today)
-        }
-    cmd.menu_text = "Request licence"
-    cmd.set_validation_proc {
-    }
-    
-    return cmd
-end
-
-def self.createNewLicCommand()
-    cmd = UI::Command.new("newlic") {
-        enterNewLicDialog(Date.today)
-        }
-    cmd.menu_text = "Enter licence key"
-    cmd.set_validation_proc {
-    }
-    
-    return cmd
-end
-
-def self.fallCommand()
-    today = Date.today
-    
-    if (isLicCValid(today))
-        activateFall()
-    else
-        licInfoDialog(today)
-    end
 end
 
 def self.activateFall()
@@ -81,9 +54,9 @@ def self.activateFall()
                 Sketchup.active_model.select_tool RopefallTool.new(initialPoints, SKETCHROPE_ROPEFALL::config)
             end
         end
-    rescue Exception => msg
-        puts msg
-        Sketchup.active_model.select_tool null
+    rescue StandardError => e
+        puts e.full_message
+        UI.messagebox("Ropefall error:\n" + e.message)
     end
 end
 
@@ -92,9 +65,6 @@ def self.intallCommands()
     submenu = UI.menu("Draw").add_submenu(SKETCHROPE_ROPEFALL::ROPEFALL)
     
     submenu.add_item(createFallCommand())
-    submenu.add_separator
-    submenu.add_item(createLicInfoCommand())
-    submenu.add_item(createNewLicCommand())
  end
  
  file_loaded(__FILE__) 
@@ -114,15 +84,47 @@ def self.showConfigInputBox()
 end
 
 def self.startFall(initialPoints, config)     
+    model.start_operation(SKETCHROPE_ROPEFALL::ROPEFALL, false, false, false)
+    @@operationOpen = true
     @@anim = Anim.new(initialPoints, config) 
-    SKETCHROPE_ROPEFALL::model.active_view.animation = @@anim
+    model.active_view.animation = @@anim
 end
 
 def self.stopFall()     
     if (@@anim != nil)     
         @@anim.stop()
-        @@anim = nil
     end
+end
+
+# called when the tool is deactivated: keep the finished rope, or discard
+# everything if the user switched to another tool while the rope was falling
+def self.endFall(view)
+    return if !@@operationOpen
+    @@operationOpen = false
+    
+    if (@@anim != nil && !@@anim.finished)
+        view.animation = nil
+        model.abort_operation
+    else
+        model.commit_operation
+    end
+    
+    @@anim = nil
+end
+
+# abort_operation also removes the collision group and helper layer created during the fall
+def self.failFall(error)
+    puts error.full_message
+    
+    if (@@operationOpen)
+        @@operationOpen = false
+        model.abort_operation
+    end
+    
+    @@anim = nil
+    # leave the tool after the current callback has returned
+    UI.start_timer(0, false) { model.select_tool(nil) }
+    UI.messagebox("Ropefall stopped:\n" + error.message)
 end
 
 def self.getInitialPointsFromSelection()

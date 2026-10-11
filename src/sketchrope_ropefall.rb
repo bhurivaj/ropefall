@@ -14,7 +14,7 @@ module SKETCHROPE_ROPEFALL
   unless file_loaded?( __FILE__ )   
     ### CONSTANTS ### ----------------------------------------------------------
     PLUGIN_NAME = 'Ropefall'.freeze
-    VERSION    = '1.0.2'.freeze
+    VERSION    = '2.0.0'.freeze
     
     file = __FILE__.dup
     file.force_encoding("UTF-8") if file.respond_to?(:force_encoding)
@@ -25,7 +25,7 @@ module SKETCHROPE_ROPEFALL
     PROXY_LOADER = File.join(PATH, 'cable').freeze
     
     @ex = SketchupExtension.new( PLUGIN_NAME, PROXY_LOADER )
-    @ex.description = "Tool to model ropes, wires by physics simulation.\n\nhttp://sketchrope.com"
+    @ex.description = "Tool to model ropes, wires by physics simulation.\n\nhttps://github.com/bhurivaj/ropefall"
     @ex.version = VERSION
     @ex.copyright = 'Balazs Torma, PhD © 2016'
     @ex.creator = 'Balazs Torma, PhD (ropefall@sketchrope.com)'

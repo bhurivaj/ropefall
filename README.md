@@ -1,6 +1,6 @@
 ![](assets/Ropefall_banner_rope.jpg)
 
-# Ropefall was a SketchUp plugin to model ropes, cables, wires. 
+# Ropefall is a SketchUp plugin to model ropes, cables, wires. 
 The algorithm uses physics simulation of a rope falling to bottom, stopped by obstacles on the way falling down. In this repository you find the source code of it.
 
 [![Ropefall video](https://img.youtube.com/vi/jsuev-g-Xg0/0.jpg)](https://www.youtube.com/watch?v=jsuev-g-Xg0)
@@ -37,7 +37,11 @@ TIP:
 block the rope from falling\
 - use some helper objects to control the shape of the rope
 
-Supported SketchUp versions: 2015+
+Supported SketchUp versions: 2024+
+
+## Build
+
+Run `./build.sh` → `target/ropefall_<version>.rbz`, then install it via Extension Manager → Install Extension. Uninstall any previous Ropefall (1.x) first.
 
 ![](assets/demo_allthree.jpg)
 

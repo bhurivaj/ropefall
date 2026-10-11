@@ -4,6 +4,8 @@ Sketchup::require "sketchrope_ropefall/constants"
 module SKETCHROPE_ROPEFALL
 
 class Anim
+    attr_reader :finished
+
     def initialize(initialPoints, config)
         @torsionSpringVectorBegin = (initialPoints[0] - initialPoints[1]).normalize
         @torsionSpringVectorEnd = (initialPoints[-2] - initialPoints[-1]).normalize
@@ -14,7 +16,7 @@ class Anim
         @dt = config.dt
         @dtFactor = 1
         @stopped = false
-        @picSerNum = 100
+        @finished = false
     end
     
     def polylineLength(initialPoints)
@@ -70,11 +72,6 @@ class Anim
         @count = @count - 1
         
         view.show_frame()
-        
-        if (SKETCHROPE_ROPEFALL::writeAnim())
-            writeView(view, @picSerNum)
-            @picSerNum = @picSerNum + 1
-        end
 
 #        finished = @count < @minCount && (@count == 0 || !@rope.hasAnyMoved())
         finished = @stopped || @count == 0 || !@rope.hasAnyMoved()
@@ -84,15 +81,15 @@ class Anim
 	    end
         
         return !finished
+    rescue StandardError => e
+        SKETCHROPE_ROPEFALL::failFall(e)
+        return false
     end    
    
     def finish(view, points)
+        @finished = true
         @ropeGroup.entities.clear!
         @ropeGroup.erase!
-
-        points.each{|p|
-            puts "points << Geom::Point3d.new(" + String(p.x().to_inch()) + ", " + String(p.y().to_inch()) + ", " + String(p.z().to_inch()) + ");"
-        }
 
         @ropeGroup = SKETCHROPE_ROPEFALL::entities.add_group
         points_chunk = points[0..99]
@@ -104,35 +101,14 @@ class Anim
             face.followme(edges)
         end
 
-        if (SKETCHROPE_ROPEFALL::writeAnim())
-            for i in 1..30
-                writeView(view, @picSerNum)
-                @picSerNum = @picSerNum + 1
-            end
-        end
-
-        SKETCHROPE_ROPEFALL::entities.each{|e| 
-            if (e.is_a?(Sketchup::Group) && e.name == COLLISIONGROUPNAME) 
-                e.erase!                
-            end
-        }
+        # collect first: erasing while iterating entities can skip items
+        collisionGroups = SKETCHROPE_ROPEFALL::entities.grep(Sketchup::Group).select{|g| g.name == COLLISIONGROUPNAME}
+        SKETCHROPE_ROPEFALL::entities.erase_entities(collisionGroups) unless collisionGroups.empty?
         Sketchup.active_model.layers.remove(DUPLAYERNAME)        
         Sketchup.active_model.select_tool nil    
         Sketchup.status_text = "Ropefall ready."
-    end 
-    
-    def writeView(view, i)
-        keys = {
-           :filename => "/home/torel/work/sketchrope/ropefall/anim/ropefall" + i.to_s + ".png",
-           :width => 400,
-           :height => 400,
-           :antialias => true,
-           :compression => 0.9,
-           :transparent => true
-         }
-         
-       view.write_image keys
     end
+
 end
 
 end
