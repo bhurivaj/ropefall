@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.2.1] - 2026-10-12
+
+### Changed
+- Settings window redesigned: follows the system light/dark theme, Method and Rope length are full-width choice rows, Display is a Line / Tube segmented control, Start/Cancel stay visible at the bottom (same look as the SKP CM plugins)
+
 ## [2.2.0] - 2026-10-11
 
 ### Added

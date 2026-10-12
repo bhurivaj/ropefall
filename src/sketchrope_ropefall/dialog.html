@@ -3,39 +3,26 @@
 <head>
 <meta charset="utf-8">
 <title>Ropefall</title>
-<style>
-  body { font-family: -apple-system, "Segoe UI", Tahoma, sans-serif; font-size: 13px; margin: 0; padding: 14px; background: #f4f4f5; color: #222; }
-  fieldset { border: 1px solid #ddd; border-radius: 6px; background: #fff; margin: 0 0 10px; padding: 8px 10px; }
-  legend { font-weight: 600; padding: 0 4px; }
-  .row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
-  .row label.name { width: 90px; color: #444; }
-  input[type=number] { width: 70px; }
-  input[type=text] { width: 110px; }
-  select { min-width: 150px; }
-  .hint { color: #777; margin-top: 2px; }
-  #errors { display: none; background: #fdecea; color: #8a1c14; border-radius: 4px; padding: 6px 8px; margin-bottom: 10px; white-space: pre-wrap; }
-  .buttons { display: flex; justify-content: flex-end; gap: 8px; }
-  button { padding: 4px 14px; }
-  .disabled { opacity: .45; }
-</style>
+<link rel="stylesheet" href="dialog_base.css">
+<link rel="stylesheet" href="dialog.css">
 </head>
 <body>
 <div id="errors"></div>
 
 <fieldset>
   <legend>Method</legend>
-  <div class="row"><input type="radio" name="method" id="method_drape" value="drape"><label for="method_drape">Drape over objects (simulation)</label></div>
-  <div class="row"><input type="radio" name="method" id="method_catenary" value="catenary"><label for="method_catenary">Catenary (instant, ignores objects)</label></div>
+  <div class="row choice"><input type="radio" name="method" id="method_drape" value="drape"><label for="method_drape">Drape over objects (simulation)</label></div>
+  <div class="row choice"><input type="radio" name="method" id="method_catenary" value="catenary"><label for="method_catenary">Catenary (instant, ignores objects)</label></div>
 </fieldset>
 
 <fieldset>
   <legend>Rope length</legend>
-  <div class="row">
+  <div class="row choice">
     <input type="radio" name="length_mode" id="mode_percent" value="percent">
     <label for="mode_percent">Percent of polyline</label>
-    <input type="number" id="length_percent" min="10" max="1000" step="1"> %
+    <input type="number" id="length_percent" min="10" max="1000" step="1"><span class="unit">%</span>
   </div>
-  <div class="row">
+  <div class="row choice">
     <input type="radio" name="length_mode" id="mode_fixed" value="fixed">
     <label for="mode_fixed">Fixed length</label>
     <input type="text" id="length_fixed">
@@ -47,8 +34,10 @@
   <legend>Shape</legend>
   <div class="row">
     <label class="name">Display</label>
-    <input type="radio" name="display" id="display_line" value="line"><label for="display_line">Line</label>
-    <input type="radio" name="display" id="display_tube" value="tube"><label for="display_tube">Tube</label>
+    <div class="segmented">
+      <input type="radio" name="display" id="display_line" value="line"><label for="display_line">Line</label>
+      <input type="radio" name="display" id="display_tube" value="tube"><label for="display_tube">Tube</label>
+    </div>
   </div>
   <div class="row"><label class="name" for="diameter">Diameter</label><input type="text" id="diameter"></div>
   <div id="tube_options">
@@ -60,7 +49,7 @@
 
 <div class="buttons">
   <button id="cancel">Cancel</button>
-  <button id="start">Start</button>
+  <button id="start" class="primary">Start</button>
 </div>
 
 <script>
